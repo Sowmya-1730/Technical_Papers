@@ -39,8 +39,9 @@
 - ps -fp 2358 (To trace the parent of 2358)
 - ps -fp 2071  (To trace the parent of 2071 parent, Need to do this process until we get the senior-most parent process. Here, systemd is the most senior parent process)
 ```text
-O/p: UID          PID    PPID  C STIME TTY          TIME CMD
-sowmya      2071       1  0 14:04?        00:00:00 /usr/lib/systemd/systemd --user
+O/p:
+UID         PID       PPID  C STIME TTY          TIME   CMD
+sowmya      2071       1    0 14:04  ?        00:00:00 /usr/lib/systemd/systemd --user
 ```
 
 
