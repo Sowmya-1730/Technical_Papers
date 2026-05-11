@@ -132,12 +132,11 @@ mkdir d1
 touch d1/a.txt
 
 ## Check permission of a.txt. What are the permissions in decimal format
-ls -l a.txt 
-Permissions in decimal format is 664
+ls -l a.txt (Permissions in decimal format are 664)
 
-## What are the three elements in the permission? Do you understand conversion of decimal to binary?
-- Three elements in the permission for owner, group and others
-- Yes, I understand the conversion of decimal to binary. For above a.txt the permission in binary will be - 110 110 100
+## What are the three elements in the permission? Do you understand the conversion of decimal to binary?
+- Three elements in the permission for the owner, group, and others
+- Yes, I understand the conversion of decimal to binary. For above a.txt, the permission in binary will be - 110 110 100
 
 
 ## Change the permissions of a.txt to 755?
@@ -156,20 +155,20 @@ touch d2/b.txt
 chmod -R 755 d2
 
 
-## Start the firefox browser
+## Start the Firefox browser
 firefox &
 
 
-## List all processes in your computer
+## List all processes on your computer
 ps -ef
 
 
 ## Find pid of Firefox browser. Difference between parent process and child process(hint: you need to learn pipes)
 ps -ef| grep firefox | grep -v grep | awk '{print$2}' 
-- ps -ef will try to load all processes running in system
+- ps -ef will try to load all processes running in the system
 - grep firefox will only check for firefox
-- grep -v grep will remove all the lines will come with the ouput of grep firefox process
-- awk '{print$2}' will only print second column where PID's will be showed.
+- grep -v grep will remove all the lines that come with the output of grep firefox process
+- awk '{print$2}' will only print the second column where PID's will be shown.
 
 
 ## Kill the process (Hint: pipes, awk, xargs, kill)
@@ -177,14 +176,14 @@ kill -9 2358 (Will kill the process with id 2358  -9 will tell to do the killing
 
 
 ## What is your user in Linux?
-My user in linux is sowmya. We can know it by giving whoami command.
+My user in Linux is sowmya. We can know it by giving the whoami command.
 
 
 ## What is your group in Linux?
-My group in linux is sowmya. We can check it by typing groups command.
+My group in Linux is sowmya. We can check it by typing the groups command.
 
 
-## What is your computer architecture? (hint uname command, learn the flags)
+## What is your computer architecture? (Hint: uname command, learn the flags)
 - uname -m (Will help us to know our computer architecture. For me, it was x86_64)
 - uname -a (To know all system info)
 - uname -r (To about our kernel version. For me, it was 6.17.0-22-generic
@@ -192,15 +191,17 @@ My group in linux is sowmya. We can check it by typing groups command.
 
 ## What is your audio driver? (hint: lspci, learn pipes and grep)
 lspci | grep -i audio (lspci command will help us to have detailed information about PCI buses and hardware connected devices to the system. For me, the below output is shown)
+``` text
 0000:00:1f.3 Multimedia audio controller: Intel Corporation Raptor Lake-P/U/H cAVS (rev 01)
+```
 
 
-## Go to home folder. Use find command to find all occurrences of "java" text anywhere in any filename or directory name in your system?
-cd ~
-find . -name '*.java'
+## Go to home folder. Use the find command to find all occurrences of "java" text anywhere in any filename or directory name in your system?
+- cd ~
+- find . -name '*.java'
 
 
-## List everything in the home directory to get all files (including hidden), sorted by time in reverse with human readable file sizes
+## List everything in the home directory to get all files (including hidden), sorted by time in reverse, with human-readable file sizes
 ls -artlh
 
 
@@ -214,38 +215,38 @@ ls -artlh
 # Questions
 
 ## What is the difference between service and application?
-- Service, is a background feature or program which helps to support the system or other applications to work.
-- An application is a program directly used by the user. For example, Youtube, Swiggy, Flipkart etc.
+- Service is a background feature or program that helps to support the system or other applications to work.
+- An application is a program directly used by the user. For example, YouTube, Swiggy, Flipkart, etc.
 
 ## What are the wildcards ~,.,..,* and ?
-- ~ represents for home directory
-- . represents current working directory
-- .. represents parent directory for current directory
-- * used for matches anything
-- ? matches only single character
+- ~ represents the home directory
+- . represents the current working directory
+- .. represents the parent directory for the current directory
+- (asterik) * used for matches anything
+- ? matches only a single character
 
 
 ## What are the different flags for kill? Why do we use kill -9 in general?
 - -1 (to reload the process)
 - -2 (to interrupt like Ctrl+C)
 - -9 (to force kill)
-- -15 (for graceful termination it will be used by default)
-- -18 (continue stopped proces)
+- -15 (for graceful termination, it will be used by default)
+- -18 (continue stopped process)
 - -19 (to pause the process)
 
 ## Are you clear about file permissions? Explain them? chmod and chown commands?
 Yes. Normally, we have three permissions.
-- read(r) It gives the permission to read the file
-- write(w) It gives the permission to write into the file
-- execute(x) It gives permission to execute the file
+- read(r) It permits reading the file
+- write(w) It permits writing into the file
+- execute(x) It permits the execution of the file
 chmod command will help us to modify the permissions
-chown command will help us to change the ownerships of that file or directory
+chown command will help us to change the ownership of that file or directory
 
-## Usage of Ctrl+R to search previously run commands, arrow keys, tab autocompletion.
-- Ctrl+R will help us to reverse search the commands that we used previously. It was fast as as we use type some characters to get the entire command
-- arrow keys will help us to go back to used commands in sequential order in reverse
-It was fast as as we use type some characters to get the entire command
-- arrow keys will help us to go back to used commands in sequential order in reverse
-- tab autocompletion will help us to fill the commands easily by asking terminal to autofill by writing upto few characters to make it understand what it will be
-- tab autocompletion will help us to fill the commands easily by asking terminal to autofill by writing upto few characters to make it understand what it will be
+## Usage of Ctrl+R to search previously run commands, arrow keys, and tab autocompletion.
+- Ctrl+R will help us to reverse search the commands that we used previously. It was as fast as typing some characters to get the entire command
+- The arrow keys will help us to go back to the used commands in sequential order, in reverse order
+It was as fast as typing some characters to get the entire command
+- The arrow keys will help us to go back to the used commands in sequential order, in reverse order
+- tab autocompletion will help us to fill the commands easily by asking the terminal to autofill by writing up to a few characters to make it understand what it will be
+- tab autocompletion will help us to fill the commands easily by asking the terminal to autofill by writing up to a few characters to make it understand what it will be
 
