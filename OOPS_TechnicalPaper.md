@@ -147,7 +147,7 @@ class rectangle(shape):
 
 shapes = [circle(), rectangle()]
 for shape in shapes:
-   shp.draw()
+   shape.draw()
 ```
 
 ---
