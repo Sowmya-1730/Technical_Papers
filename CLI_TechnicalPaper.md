@@ -4,7 +4,7 @@
 
 - touch file.txt (To create files)
 - cat file.txt (To read files)
-- echo "Matter you want to add" >> file.txt (To update files, or you can use the vim command to write matter into that file)
+- echo "Matter you want to add" > file.txt (To update files, or you can use the vim command to write matter into that file)
 - vim file.txt (In the editor, we will update the text file)
 - rm file.txt (To remove empty file)
 - rm -r file.txt (To remove non-empty files recursively)
