@@ -4,113 +4,115 @@
 
 - touch file.txt (To create files)
 - cat file.txt (To read files)
-- echo "Matter you want to add" >> file.txt (To update files or you can use vim command to write matter into that file)
-- vim file.txt (In editor, we will update text file)
+- echo "Matter you want to add" >> file.txt (To update files, or you can use the vim command to write matter into that file)
+- vim file.txt (In the editor, we will update the text file)
 - rm file.txt (To remove empty file)
 - rm -r file.txt (To remove non-empty files recursively)
 - mv file.txt dir1/ (To move file.txt to inside dir1 directory)
 - mv file.txt file1.txt (To rename files)
-- cp file.txt copiedfile.txt (To copy file into another file)
+- cp file.txt copiedfile.txt (To copy a file into another file)
 
 
 ## Create/Read/Update/Delete/Move folders
 
-- mkdir dir1 (To create directory)
+- mkdir dir1 (To create a directory)
 - cd dir1 (To change into dir1 directory)
-- rmdir dir1 (To delete empty directory)
-- rm -r dir1 (To delete non-empty directory)
+- rmdir dir1 (To delete an empty directory)
+- rm -r dir1 (To delete a non-empty directory)
 - cp -r dir1 dir2 (To copy directory recursively)
 - pwd (To display current directory)
 
 
 ## Check disk status
-- df -h (To display disk status -h option helps to see details human understandable language)
-- du -sh (To check folder size -s for summary and -h for to display in human readable)
+- df -h (To display disk status -h option helps to see details in a human-understandable language)
+- du -sh (To check folder size -s for summary and -h for display in human-readable format)
 
 
 ## Check status of processes, able to extract process ids(hint: use pipe operator to combine ps, xargs and awk)
-- ps -ef | awk '{print$2}' | xargs kill -9 (To kill the process using kill -9 to force kill which came as the result by awk which is to print 2nd column which gets the input from the output of ps -ef which list out all processes)
+- ps -ef | awk '{print$2}' | xargs kill -9 (To kill the process using kill -9 to force kill, which came as a result of awk, which is to print the 2nd column, which gets the input from the output of ps -ef, which lists out all processes)
 
 
 ## Getting the most senior parent process
 - firefox & (Start firefox)
-- ps -ef | grep firefox (List the processes which run by firefox)
-- ps -ef | grep firefox | grep -v grep | awk '{print$3}' (List out the parent PPID's of processes run by firefox)
-- ps -fp 2358 (To trace parent of 2358 parent)
-- ps -fp 2071  (To trace parent of 2071 parent, Need to do this process until we get the senior most parent process. Here, systemd is most senior parent process)
+- ps -ef | grep firefox (List the processes that are run by Firefox)
+- ps -ef | grep firefox | grep -v grep | awk '{print$3}' (List out the parent PPIDs of processes run by Firefox)
+- ps -fp 2358 (To trace the parent of 2358)
+- ps -fp 2071  (To trace the parent of 2071 parent, Need to do this process until we get the senior-most parent process. Here, systemd is the most senior parent process)
+```text
 O/p: UID          PID    PPID  C STIME TTY          TIME CMD
-sowmya      2071       1  0 14:04 ?        00:00:00 /usr/lib/systemd/systemd --user
+sowmya      2071       1  0 14:04?        00:00:00 /usr/lib/systemd/systemd --user
+```
 
 
 ## Change file permissions. Able to explain and manipulate the numerical file permissions. (chmod and chown)
 
-- chmod 755 file.txt (7 for user/owner all rwx permissions, 5 for group read and execute, 5 for others read and execute. It will change the permissions of file.txt file)
-- chown sowmya:sowmya file.txt (It will change ownership of file.txt for owner it will be sowmya and for group also it will be sowmya)
-- chmod -R 755 file.txt (It will recursively change permissions of file.txt file)
+- chmod 755 file.txt (7 for user/owner all rwx permissions, 5 for group read and execute, 5 for others read and execute. It will change the permissions of file.txt)
+- chown sowmya:sowmya file.txt (It will change the ownership of file.txt for the owner, it will be sowmya, and for the group also it will be sowmya)
+- chmod -R 755 file.txt (It will recursively change permissions of file.txt)
 
 
-## Able to extract last x lines from files, get word count for a particular word, find a particular word. (Basics of sed or awk would do)
+## Able to extract the last x lines from files, get word count for a particular word, and find a particular word. (Basics of sed or awk would do)
 - tail -n 10 file.txt
-- grep "Hello" file.txt | wc -l (To print the word count of hello in the file.txt)
-- grep "Hello" file.txt (It will show the lines which contains hello world)
-- awk '{count += gsub(/Hello/,"")} END {print count}' file.txt (With awk, by using gsub() it will check for matching string and increase the count and in the end it will print in terminal)
-- sed -n '/Hello/p' file.txt (-n option is to supress default printing and p option is to tell to print the lines which consists of Hello word)
+- grep "Hello" file.txt | wc -l (To print the word count of " Hello " in the file.txt)
+- grep "Hello" file.txt (It will show the lines that contain " Hello World. ")
+- awk '{count += gsub(/Hello/,"")} END {print count}' file.txt (With awk, by using gsub(), it will check for a matching string and increase the count, and in the end it will print in the terminal)
+- sed -n '/Hello/p' file.txt (-n option is to suppress default printing, and p option is to print the lines that consist of the Hello word)
 
 
 ## Basics of sed and awk
-- sed is used mostly for replacement and editing of text. Its full form is Stream Editor.
-- Ex: sed 's/Linux/Ubuntu/' file.txt (s stands for substitute it means in place of Linux substitute Ubuntu in file.txt file)
-      sed -n '2p' file.txt (-n to compress default printing and 2p will print two lines only in file.txt file)
-- awk is mostly used for processing an pattern-searching. If we give word structure to find out. It will do the process
-- Ex: awk '{print $1}' data.txt (It will print first column values in data.txt files)
-      awk '/Kavya/' data.txt (Search for Kavya in data.txt file)
+- sed is used mostly for the replacement and editing of text. Its full form is Stream Editor.
+- Ex: sed 's/Linux/Ubuntu/' file.txt (s stands for substitute, it means in place of Linux substitute Ubuntu in file.txt)
+      sed -n '2p' file.txt (-n to compress default printing and 2p will print two lines only in file.txt)
+- awk is mostly used for processing and pattern-searching. If we give word structure to find out. It will do the process
+- Ex: awk '{print $1}' data.txt (It will print the first column values in data.txt files)
+      awk '/Kavya/' data.txt (Search for Kavya in the data.txt file)
 
 
 ## Difference between absolute and relative paths.
 - Absolute path: It shows the path root '/'
-- Relative path: It will depend on current location. If suppose if I'm in file.txt in dir1. Then it will be like 'dir1/file.txt'  
+- Relative path: It will depend on the current location. If I'm in file.txt in dir1. Then it will be like 'dir1/file.txt'  
 
 
-## Learn how to use find command
-find command will help us to find out the things we need like files, directories, hidden files, text files. If we want to do manipualtions on it or just for to where it was.
+## Learn how to use the find command
+find command will help us to find out the things we need, like files, directories, hidden files, and text files. If we want to do manipulations on it or just to where it was.
 - find . -name file.txt (To find the file.txt)
-- find . -type f -name "*.txt" (To find out all .txt files. -name is case-sensitive and -type will tell the type of it like whether it is file or directories or what)
+- find . -type f -name "*.txt" (To find out all .txt files. -name is case-sensitive and -type will tell the type of it, like whether it is a file or a directory or what)
 
 
 ## Learn ls with the 5 most commonly used flags used such as: -- View hidden files -- Sort by time -- Reverse sort -- Human readable file sizes -- Combining flags to get hidden files, sorted by time in reverse with human readable file sizes.
 - ls -a (to see hidden files)
 - ls -t (sort by time)
 - ls -r (Reverse sort)
-- ls -atrlh (Combines all flags to get hidden files, sorted by time in reverse with human readable file sizes.
+- ls -atrlh (Combines all flags to get hidden files, sorted by time in reverse with human-readable file sizes.
 
 
 ## Find out what are the terminal codes such as Ctrl+D, Ctrl+C, Ctrl+Z etc and use them
 - Ctrl+D (To end input/logout) 
 - Ctrl+C (To stop the process)
 - Ctrl+Z (To suspend the process)
-- Ctrl+L (To clear termianl, and other will be writing clear word)
+- Ctrl+L (To clear the terminal, and others will write a clear word)
 - Ctrl+R (To reverse search)
-- Ctrl+A (To go to beginning of file)
-- Ctrl+E (To go to end of file)\
+- Ctrl+A (To go to the beginning of the file)
+- Ctrl+E (To go to the end of the file)\
 
 
 ## Difference between Ctrl+C and Ctrl+Z
-- Ctrl+C will help us to stop the process that we are doing. If, we are pinging google.com we can use this code to stop that process of pinging. It sends signal of SIGINT 
-- Ctrl+Z will help us to suspend the process. Sends SIGTSTP signal. To continue that process we can use fg or bg command.
+- Ctrl+C will help us to stop the process that we are doing. If we are pinging google.com, we can use this code to stop that process of pinging. It sends a signal of SIGINT 
+- Ctrl+Z will help us to suspend the process. Sends SIGTSTP signal. To continue that process, we can use the fg or bg command.
 
 
 ## Find out how to use Ctrl+R to reverse search
-It will helps us to search command history instantly, we can reuse already used commands again. It works faster and there is no need to type 
+It will help us to search the command history instantly, and we can reuse already used commands. It works faster, and there is no need to type 
 
 
 ## Find out how to use tab autocompletion
-To use tab autocompletion, we can we will just write few characters and press tab, if it understood what that file it is and which is unique it will print. But, up to those characters there are so many files means we need to add some more characters to it.
+To use tab autocompletion, we can just write a few characters and press tab. If it understands what that file is and which is unique, it will print. But, up to those characters, there are so many files, which means we need to add some more characters to them.
 
 
 ## Find out how to use the arrow keys to navigate history
-By pressing up arrow key, we will go to the previous commands and if we use down arrow key it will go to below commands but if we are at the bottom and using of down arrow it will not do anything.
-And coming to difference between these arrow keys and Ctrl+R is,
-- By Ctrl+R we will do search based navigation by typing. But by arrow we need to keep press it until we reached our desired command to look into.
+By pressing the up arrow key, we will go to the previous commands, and if we use the down arrow key, it will go to the commands, but if we are at the bottom and using the down arrow, it will not do anything.
+And coming to the difference between these arrow keys and Ctrl+R is,
+- By Ctrl+R, we will do search-based navigation by typing. But by the arrow, we need to keep pressing it until we reach our desired command to look into.
 
 
 
