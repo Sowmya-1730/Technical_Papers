@@ -8,6 +8,9 @@ SQL commands are mainly divided into:
 
 1. DDL (Data Definition Language)
 2. DML (Data Manipulation Language)
+3. TCL (Transaction Control Language)
+4. DCL (Data Control Language)
+5. DQL (Data Query Language)
 
 ---
 
@@ -251,14 +254,12 @@ Operations include:
 * Insert data
 * Update data
 * Delete data
-* Retrieve data
 
 # Types of DML Commands
 
 1. INSERT
 2. UPDATE
 3. DELETE
-4. SELECT
 
 
 # 1. INSERT Command
@@ -354,33 +355,6 @@ DELETE FROM students;
 
 This removes all rows but keeps the table structure.
 
-# 4. SELECT Command
-
-The SELECT command retrieves data from a table.
-
-## Syntax
-
-```sql
-SELECT column1, column2
-FROM table_name;
-```
-
-
-## Select All Columns
-
-```sql
-SELECT *
-FROM students;
-```
-
-
-## Select Specific Columns
-
-```sql
-SELECT name, department
-FROM students;
-```
-
 
 # Difference Between DDL and DML
 
@@ -414,7 +388,6 @@ They help maintain data consistency and integrity.
 1. COMMIT
 2. ROLLBACK
 3. SAVEPOINT
-4. SET TRANSACTION
 
 
 # 1. COMMIT Command
@@ -503,24 +476,12 @@ COMMIT;
 Only the first insert remains.
 
 
-# 4. SET TRANSACTION Command
-
-Used to set transaction properties.
-
-
-## Example
-
-```sql
-SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-```
-
----
 
 # DCL (Data Control Language)
 
 DCL commands are used to control user permissions and access.
 
-These commands are mainly used by database administrators.
+Database administrators mainly use these commands.
 
 # Types of DCL Commands
 
