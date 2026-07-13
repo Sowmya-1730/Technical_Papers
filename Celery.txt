@@ -1,0 +1,2398 @@
+July 10
+
+Chapter - 1: Why Celery Exists
+===================================
+To handle the tasks that need to be done in background without making the users wait.
+
+Celery is a distributed task queue system that allows your application to hand off long-running or time-consuming tasks to separate worker processes, so the main application can respond quickly without waiting for those tasks to finish.
+
+
+Chapter - 2: What Exactly is a Task?
+=======================================
+
+A Celery task is a normal Python function that Celery wraps with additional information so it can be executed by a worker.
+
+Normal Function -> Celery adds metadata -> Now it becomes a Task
+
+
+
+Python function -> Celery packaging -> Task ID, Queue Name -> Arguments -> Retry information -> Celery Task
+
+@app.task
+def send_email(user_id):
+    print("Email Sent")
+    
+@app.task decorator, will tell that need to be done in background whenever it was asked. So, remember that. 
+
+Polished answer,
+Adding @app.task does not execute the function in the background. It simply registers the function as a Celery task, making it eligible to be executed by a Celery worker later. The task will only run asynchronously when we explicitly send it to Celery (for example, using delay() or apply_async()).
+
+
+Chapter - 3: What Happens Internally when we call delay()?
+============================================================
+This is the full journey.
+
+1. Django View
+
+        │
+             ▼
+
+2. send_email.delay(25)
+
+        │
+             ▼
+
+3. Celery creates Task Message
+
+        │
+             ▼
+
+4. RabbitMQ stores Task Message
+
+        │
+             ▼
+
+5. Worker consumes Task Message
+
+        │
+             ▼
+
+6. Worker checks Task Registry
+
+        │
+             ▼
+
+7. Finds send_email
+
+        │
+             ▼
+
+8. Executes send_email(25)
+
+This is the lifecycle you should now visualize every time you see delay().
+
+If RabbitMQ crashes before delivering the task, the worker cannot execute it because it never received it. Whether the task is lost or recovered depends on RabbitMQ's configuration. If the queue is durable and the task message is persistent, RabbitMQ can recover the task after restarting. Otherwise, the task may be lost.
+
+RabbitMQ will decide which worker will get the task
+
+
+Responsibilities (Very Important)
+
+Component	Responsibility
+Django		Calls delay()
+Celery		Creates the task message and publishes it
+RabbitMQ	Stores the task and delivers it to a worker
+Worker		Executes the task
+
+
+Chapter - 4: What Exactly is a Celery Worker?
+===============================================
+
+A Celery worker is an independent operating system process.
+
+When you run:
+celery -A config worker
+
+The OS creates a new process.
+
+So, if suppose we have only one worker and it was running one task which takes 10mins. And there other two python functions to run. Until that task is done, these two need to be wait. Here, we will get bottle neck. So, Celery create child processes.
+
+
+A Celery worker is a main process that can manage one or more child processes to execute tasks concurrently.
+
+
+Imagine this.
+
+Celery Worker (Main Process)
+
+        │
+
+ ┌──────┼──────┐
+
+Child1  Child2  Child3
+
+Now:
+
+Child1 → Email
+
+Child2 → PDF
+
+Child3 → SMS
+Three different tasks execute simultaneously.
+
+Notice something important.
+
+We still say:
+
+"One Celery Worker"
+
+But internally,
+
+that worker can manage multiple child processes.
+
+This is called worker concurrency.
+
+A Celery worker with a concurrency of 4 can execute up to 4 tasks simultaneously because it creates 4 child processes (using the default prefork pool). Each child process can execute one task independently.
+
+
+celery -A config worker --concurrency=4
+
+This command will create four child processes to the Celery worker (main process)
+
+
+Increasing concurrency, will waste the resources leads to context switching which wastes the time, more swithcing, more overhead, and less useful work.
+
+CPU-bound v/s I/O-bound 
+
+
+
+Chapter - 5: How Does Celery Know About Our Tasks?
+====================================================
+
+By importing the tasks into celery.py file and registering it to celery. So, they will be in celery registry tasks. So, whenever a task comes it check its 'Task Registry' and execute that function.
+
+The Task Registery is build during startup,
+Start Worker
+
+↓
+
+Create Celery App
+
+↓
+
+Import task modules
+
+↓
+
+Decorators execute
+
+↓
+
+Tasks registered
+
+↓
+
+Worker starts consuming
+
+
+Chapter - 6: What Does autodiscover_tasks() actually do?
+===========================================================
+
+If suppose we have 50 apps in Django. Manually importing 50 tasks into celery is not good practice. So, instead of that, it tries to ask Django. Where, INSTALLED_APPS have all apps. So, it hunts start. It checks every app one by one. If it find out tasks.py in that app. It will register it.
+
+So, we write this app.autodiscover_tasks()
+
+If suppose, any app don't have tasks.py. Then, it thinks like this app don't have task to do. Okay, let's move on with next app.
+
+** autodiscover_tasks() iterates through all Django apps listed in INSTALLED_APPS, looks for a module named tasks.py, imports it if it exists, and thereby allows @app.task decorators to register tasks in Celery's task registry. **
+
+
+
+Chapter - 7: What is app = Celery( ... ) ?
+=================================================
+
+app = Celery("config") -> It creates an object.
+
+We only create one celery object. Because, if we create more than one for an application. We get confuse to which celery we need to use, which workers we need to use and everything.
+
+- config is the name of the project in your application. Which has settings.py file, wsgi.py all those. It is just a common name everyone mostly use.
+
+
+What you've just discovered is a common software design principle called " lazy initialization ".
+
+The idea is:
+Don't create expensive resources until they're actually needed.
+
+Mental model up to here,
+
+app = Celery("config")
+
+        │
+        	▼
+
+Creates Celery Application Object
+
+        │
+        	▼
+
+Stores Configuration
+
+Stores Registry
+
+Stores Broker URL
+
+(No RabbitMQ connection yet)
+
+        │
+        	▼
+
+Worker Starts
+OR
+delay() Called
+
+        │
+        	▼
+
+Now Connect to RabbitMQ
+
+
+
+Chapter - 8: Why Does celery need config_from_object()?
+=========================================================
+
+app.config_from_object("django.conf:settings", namespace="CELERY")
+
+It can have another for configuration. But, maintaining two configuration is not a good practice. Because, there will be some variables where it needs in both files. If we change it only in one file. The project won't work correctly. Like TimeZone. So, instead of two files we config celery configuations also in settings.py
+
+app.config_from_object(...) -> Load my configuration from this Python object.
+
+
+Chapter - 9: Why Do We Need namespace="CELERY"?
+========================================================
+
+In settings.py file, we have all things related to database, django, celery, third-parties. But, how can celery know those are mine. It will be done by this namespace.
+
+CELERY_BROKER_URL
+
+CELERY_RESULT_BACKEND
+
+CELERY_TASK_SERIALIZER
+
+CELERY_TIMEZONE
+
+So, everything begin with CELERY_ belongs to Celery.
+
+So, only celery related settings are loaded into the application object.
+
+Create Celery App
+
+        │
+        	▼
+
+Read Django Settings
+
+        │
+        	▼
+
+Load only CELERY_* settings
+
+        │
+        	▼
+
+Store Configuration
+
+        │
+        	▼
+
+Discover Tasks
+
+        │
+        	▼
+
+Build Registry
+
+        │
+        	▼
+
+Connect to RabbitMQ
+
+        │
+        	▼
+
+Worker Ready
+
+
+This is a software engineering principle called namespacing.
+
+
+
+Chapter - 10: Building celery.py from Scratch
+===============================================
+
+from celery import Celery
+
+# 1. Create the Celery application object
+app = Celery("config")
+
+# 2. Load configuration from Django settings
+app.config_from_object(
+    "django.conf:settings",
+    namespace="CELERY"
+)
+
+# 3. Discover tasks from installed Django apps
+app.autodiscover_tasks()
+
+It is what to do
+
+Chapter - 11: Why Do We Need __init__.py?
+==========================================
+# config/__init__.py
+
+from .celery import app as celery_app
+
+__all__ = ("celery_app",)
+
+It is like execute those.
+
+Complete Startup Flow,
+
+Django Starts
+        │
+        	▼
+        	
+import config
+        │
+        	▼
+
+Python executes __init__.py
+        │
+        	▼
+
+from .celery import app as celery_app
+        │
+        	▼
+
+Python imports celery.py
+        │
+        	▼
+
+Create Celery Application
+        │
+        	▼
+
+Load Configuration
+        │
+        	▼
+
+Discover Tasks
+        │
+        	▼
+
+Celery is Initialized
+
+
+
+Chapter - 12: What Happens When We start a worker?
+===================================================
+
+celery -A config worker
+
+
+Full LifeCycle
+----------
+                Worker Startup
+
+OS
+│
+▼
+Start Python Process
+│
+▼
+import config
+│
+▼
+Execute __init__.py
+│
+▼
+Import celery.py
+│
+▼
+Create Celery App
+│
+▼
+Load Configuration
+│
+▼
+Discover Tasks
+│
+▼
+Build Task Registry
+│
+▼
+Connect to RabbitMQ
+│
+▼
+Wait for Messages
+                │
+                │
+                	▼
+
+         Django Application
+
+delay()
+│
+▼
+Create Task Message
+│
+▼
+RabbitMQ Queue
+│
+▼
+Worker Receives Message
+│
+▼
+Look up Task Registry
+│
+▼
+Execute Function
+│
+▼
+Task Complete
+
+
+
+
+
+PHASE - 2
+----------------
+
+Chapter - 13: What do we need before running Celery?
+======================================================
+Django Project
+        │
+       	▼
+Celery Installed
+        │
+        	▼
+RabbitMQ Running
+        │
+        	▼
+Celery Configured
+        │
+        	▼
+Worker Running
+        │
+        	▼
+Ready to Execute Tasks
+
+
+
+
+Chapter - 14: When Does Celery Send the ACK?
+==============================================
+There can be at-most-once delivery. What happens if we immediately send ACK after taking task.
+
+There can be duplicate execution. When same task repeats because of crashing of worker before sending ACK. It was better than above. But not ideal. Because, at banking system, two payments can be done for the same user if he did only one time. Because of this.
+
+So, engineers think about Trade-offs not perfection.
+
+But, celery most lean toward option b. Because losing task is more critical than repeating a task.
+
+The real solution is to make the task itself safe to run more than once, or otherwise ensure duplicate execution doesn't produce incorrect results.
+
+That concept is called idempotency.
+
+Ex:
+Think:
+
+"If it runs twice, does it produce a different final state?"
+
+If the final state is the same, it's a good candidate for being idempotent.
+
+
+
+
+Chapter 15 – If Every Task Has a Task ID, Why Can Duplicate Execution Still Happen?
+====================================================================================
+
+Because it don't know whether that task was done or not to another worker. So, we need to write safe logic. So, that even if same task we need to handle that.
+
+If an interviewer asked:
+
+"Would you make send_welcome_email idempotent?"
+
+A balanced answer would be:
+
+"It depends on the business requirements. If duplicate emails would significantly affect user experience or brand perception, I would make it idempotent. Otherwise, I might accept the small possibility of duplicate emails to keep the system simpler, while ensuring business-critical tasks like payments are always idempotent."
+
+That answer shows you're making decisions based on impact, not applying the same solution everywhere.
+
+
+A Principle to Remember
+
+The stronger the business impact of duplicate execution, the stronger the need for idempotency.
+
+Examples:
+
+Task			Duplicate Execution Impact	Usually Make Idempotent?
+Deduct money		🚨 Very High			✅ Always
+Create invoice		🚨 Very High			✅ Always
+Ship order		🚨 Very High			✅ Always
+Award loyalty points	🚨 High			✅ Usually
+Send welcome email	🙂 Low				Depends
+Write a log entry	😀 Very Low			Usually not necessary
+
+
+
+Chapter - 16: What is a Retry?
+=================================
+How we studied about retry in RabbitMQ. Wait for some time and then try again.
+
+Temporary v/s Permanent Failure
+
+
+A task should do one logical piece of work instead of doing multiple works in a single task.
+
+
+
+Chapter - 17: Why do we need chains?
+=========================================
+
+Let's suppose we have multiple tasks to do. So, we need to do like after payment only we need to proceed with invoice then sms or email. But who manages which task to run next.
+
+Answer is Celery.
+
+It is a chain of workflow with different tasks. 
+
+Celery will decide if first task was completed, then it will start task 2.
+
+Code dependency is like difference in code. But business dependency is different because, invoice depends on payment. So, if payment failed then we should not create invoice. 
+
+This is where chain dependency will be used. That's why we call the workflow of tasks as chains.
+
+A chain isn't just:
+
+"Run A, then B, then C."
+
+It's also:
+
+"Only continue if the previous task completed successfully."
+
+That's what makes it suitable for business workflows.
+
+
+
+Phase - 3: Celery Canvas
+Canvas is Celery's name for building workflows using multiple tasks.
+
+Chapter - 18: Understanding chain()
+==========================================
+
+"These tasks form one pipeline. Execute them one after another."
+
+"A Chain is a sequence of independent tasks, where Celery decides when to publish the next task."
+
+
+
+Chapter - 19: Writing your first chain()
+=========================================
+@app.task
+def reduce_stock(order_id):
+    ...
+
+@app.task
+def deduct_money(order_id):
+    ...
+
+@app.task
+def generate_invoice(order_id):
+    ...
+
+@app.task
+def send_email(order_id):
+    ...
+    
+These are tasks, which will be published through .delay()
+
+Here, we have .s(), it creates a Task Signature.
+
+workflow = chain(
+    reduce_stock.s(order_id),
+    deduct_money.s(),
+    generate_invoice.s(),
+)
+
+
+
+
+Chapter - 20: Executing a Chain
+==================================
+workflow = chain(
+    reduce_stock.s(order_id),
+    deduct_money.s(),
+    generate_invoice.s(),
+)
+
+The workflow is ready now who will start the first task in this workflow. Celery has .apply_async()
+
+workflow.apply_async()
+
+Normal, .delay() will publish all tasks immediately. Here, this one will publish next task when the previous one task is completed and sent the ACK.
+
+
+
+Chapter 21 – Why Does the First Task Get Arguments but Others Don't?
+======================================================================
+
+workflow = chain(
+    reduce_stock.s(order_id),
+    deduct_money.s(),
+    generate_invoice.s(),
+)
+
+Here, we can see for first task only there are arguments but not for next tasks.
+
+We think that celery knows. But wrong?
+
+Here, in this chain workflow the output of one task will be passed as input to the next task. So, we don't give any arugments to it in brackets ().
+
+
+Chapter 22 - Immutable Signatures (.si())
+=============================================
+
+We learned that ouput of one task will be input of another task. But, what if in that function definition we only have one argument. But while it was passing it became 2. Now, python raise TypeError with number of arguments this function receives.
+
+Celery says:
+
+"Sometimes you don't want the previous task's result."
+
+So it provides an Immutable Signature.
+
+So, insted of .s() we will write like .si()
+
+Ex:
+
+@app.task
+def say_hello():
+    return "Hello"
+    
+@app.task
+def cleanup():
+    print("Cleaning temporary files...")
+    
+chain(
+    say_hello.s(),
+    cleanup.si(),
+)
+
+'i' stands for immutable. Means Do not modify my arguments
+
+Mental Model
+
+Think of .s() as saying:
+
+"I'm willing to receive whatever the previous task returns."
+
+Think of .si() as saying:
+
+"Leave my arguments exactly as they are."
+
+
+
+Chapter 23 - Why do we need groups?
+====================================
+
+A Group says:
+	"These tasks are independent. Run them in parallel."
+	
+Ex:
+Email
+
+↓
+
+SMS
+
+↓
+
+Analytics
+
+↓
+
+Warehouse
+
+↓
+
+Loyalty
+
+Here, for sms it won't depend on sms, analytics don't depend on sms, similarly warehouse and loyalty. What depend on is order_id. Here comes the concept. Groups. 
+
+We create and group and run all tasks in parallel.
+
+group(
+    send_email.s(order_id),
+    send_sms.s(order_id),
+    update_analytics.s(order_id),
+)
+
+So, Celery publishes all tasks into RabbitMQ. Because here there is no dependency.
+
+Process Order
+
+↓
+
+Chain
+
+↓
+
+Reduce Stock
+
+↓
+
+Deduct Money
+
+↓
+
+Generate Invoice
+
+↓
+
+Group
+ ├── Send Email
+ ├── Send SMS
+ ├── Analytics
+ └── Warehouse
+ 
+ 
+ Chapter 24 - Chords
+ ------------------------
+ 
+ If suppose, you have one final task to send email. Before that there is group. Now, how it knows the group is completed. How it will start after entire group is done. 
+ 
+ The task will attack to group. Not tasks in group.
+ 
+ So, it will be -
+ 
+ Group 
+ 
+   +
+   
+Final task
+
+Which is exactly is Chord.
+
+
+
+A chord consists of:
+
+Header
+
+↓
+
+Callback
+
+The Header is simply a Group.
+
+Example:
+
+Header
+
+├── Thumbnail
+├── 1080p
+├── 720p
+└── NSFW
+
+The Callback is:
+
+Send Email
+
+The callback executes only after every task in the header succeeds.
+
+
+
+Chapter 25 - Does RabbitMQ store the entire chain/group/chord?
+==============================================================
+No
+
+
+
+Chapter 26 - map() - Running the same task on many inputs
+===========================================================
+
+If suppose, you want to send discout mail to all our users. Will you create signatuers or chains or chords. No, task is same but input is different. So, we will use .map
+
+send_email.map(users)
+
+By map(), the RabbitMQ will receive tasks based on the number of users.
+
+
+
+Chapter 27 - starmap() - When one input isn't enough
+========================================================
+
+If arguments are more than one, if we use map. All those items will become one tuple. But, we want three arguments. But not all three items in one tuple.
+
+So, we will use starmap()
+
+map -> task(item)
+starmap -> task(*items) it unpacks those
+
+resize_image(image1, 1920, 1080)
+
+resize_image(image2, 1280, 720)
+
+resize_image(image3, 640, 480)
+
+
+
+Chapter 28 - chunks() - Processing large datasets efficiently
+===============================================================
+
+
+Batch many inputs into fewer task messages and sent to RabbitMQ. which will it make as one batch task. 
+
+
+
+PHASE 4 - Production Reliability
+
+Chapter 29 - Retries
+=========================
+A retry means:
+
+"The task failed due to a temporary problem, so Celery schedules it to run again later."
+
+
+
+Chapter 30 - How Does self.retry() actually work
+====================================================
+@app.task(bind=True)
+def send_email(self, user_id):
+    ...
+    
+self.retry(countdown=10)
+
+
+
+Chapter 31 - max_retries
+=============================
+
+max_retries tells Celery:
+
+"Don't retry forever. After this many retries, permanently fail the task."
+
+Does max_retries = 3 mean:
+Only 3 total executions?
+
+❌ No.
+
+It means:
+
+Original execution
+
++
+
+3 retries
+
+So the task can execute 4 times in total.
+
+
+
+PHASE 4: Production Reliability
+
+
+Chapter - 32: Exponential Backoff
+=======================================
+It means increasing the delay time in the retries. Instead of constant time, like 5 sec betweeen every retry. We increase that value like 5, 10, 20, 40, 80 like that seconds.
+
+So, whatever the server we are hitting will have time to recover and handle our requests later.
+
+
+Chapter - 33: Jitter
+==========================
+
+If suppose, we have 5000 workers using exponential backoff. All will again hit the server at a time. Even though we have space for the server to available. So, it will be again come to original problem.
+So here comes the Jitter.
+
+It's like starting workers in different times by making difference in delay times. So that, workers will not start at a time. So that, it can get accepted by service and get the thing to be done.
+
+
+Each layer solves a different problem:
+
+Retry → Gives temporary failures another chance.
+max_retries → Prevents endless retry loops.
+Exponential backoff → Gives the external service time to recover.
+Jitter → Prevents thousands of workers from retrying at exactly the same time.
+
+
+
+Chapter 33 - autoretry_for
+===========================
+
+The idea is simple.
+
+Instead of saying:
+
+"If this exception happens, call self.retry()."
+
+We tell Celery:
+
+"Whenever this type of exception occurs, automatically retry the task."
+
+Only temporary exceptions belong in autoretry_for
+
+
+
+
+PHASE 5: Task Results & Monitoring
+==============
+
+Chapter 34 - Why do we need a result backend?
+==================================================
+
+Because, celery runs the tasks okay. But where it stores the results. For pdf generation where it stores the pdf, for email sending where it stores the status of it. 
+
+Here, comes the celery component "Result Backend"
+
+It can be Redis, DB, RPC, Cache.
+
+
+
+Chapter 35 - What is AsyncResult?
+====================================
+
+result = generate_report.delay(user_id)
+
+It returns an AsyncResult object.
+
+Think of it as:
+
+A tracking ticket for your task.
+
+
+
+
+Chapter 36 - Task States
+==============================
+
+PENDING - The task has not completed yet
+
+STARTED - The worker is currently executing the task
+
+SUCCESS - Worker finishes successfully
+
+FAILURE - The task is failed
+
+RETRY - The previous attempt failed temporarily, and Celery has scheduled another attempt
+
+
+
+Chapter 37 - Reading Task Status with AsyncResult
+====================================================
+
+Now, we know about task status. But we need to ask right. That will happend through AsyncResult()
+
+
+Chapter 38 - Result Expiration (result_expires)
+====================================================
+result_expires controls:
+
+How long
+
+↓
+
+Task Results
+
+↓
+
+Remain in the Result Backend
+It does not control:
+
+Task execution
+
+RabbitMQ messages
+
+Worker lifetime
+
+Only the stored result.
+
+Because, if we keep on storing the results. After sometime, the Redis or DB will be full. Which is a waster to keep already completed tasks. So, we need to maintain a timeline for them based on our requirment. For example, email status. No need of that much time. One hour is enough. Financial report good amount of timeline was good. So, based on requirement we will decide the time period for results to store in result backend.
+
+
+
+
+PHASE 6 - Production & Worker Management
+
+
+Chapter 39 - Why do we need task time limits?
+=================================================
+Celery says:
+
+"No task should be allowed to run forever."
+
+So we define a maximum execution time.
+
+Time limits are not about making tasks faster.
+
+They're about:
+
+Protecting worker resources.
+
+Time limits exist to prevent:
+
+	Infinite Loops
+
+	Hung APIs
+
+	Blocked Workers
+
+	Resource Exhaustion
+
+Their goal is:
+
+Keep workers healthy and available.
+
+
+
+Chapter - 40: Soft Time Limit
+==================================
+
+"You've exceeded your allowed time. Please stop."
+
+Soft Time Limit does not immediately kill the worker.
+
+It simply interrupts the task by raising an exception.
+
+The task can decide to:
+
+	Clean resources
+
+	Log information
+
+	Exit gracefully
+
+
+
+Chapter - 41: Hard Time Limit
+=================================
+Think of the difference like this:
+
+- Soft Time Limit → "Please stop and clean up."
+- Hard Time Limit → "Time's up. I'm terminating you now."
+
+
+
+Chapter 42 - Worker Concurrency
+=================================
+
+It's like having child processess for main worker process. We discussed in chapter 4
+
+
+Chapter 43 - Why do we need Prefetch?
+======================================
+How many unacknowledged tasks a worker is allowed to hold at one time.
+
+
+Chapter 44 - worker_prefetch_multiplier
+============================================
+worker_prefetch_multiplier = 1
+
+celery -A project worker --concurrency=4
+
+Concurrency = Number of execution slots.
+Prefetch multiplier = Number of unacknowledged tasks per execution slot.
+
+So the formula is:
+
+Total Reserved Tasks = Concurrency × worker_prefetch_multiplier
+
+
+Chapter 45 - What is a Worker Pool?
+========================================
+Celery has different ways to create the slots which we mention through concurrency.
+
+That mechanism is called the Worker Pool.
+
+Prefork
+Threads
+Gevent
+Eventlet
+Solo
+
+Instead of one execution model...
+
+Let's support several.
+
+CPU-heavy tasks
+
+↓
+
+One pool type
+
+---------------------
+
+Network-heavy tasks
+
+↓
+
+Another pool type
+
+This gives you flexibility to choose what fits your workload.
+
+
+A Worker Pool is how Celery implements concurrency.
+
+It decides:
+
+How execution slots are created.
+How tasks are run internally.
+
+Different workloads benefit from different pool implementations.
+
+
+
+Chapter 46 - Prefork Pool (The default pool)
+===============================================
+The word Prefork can be split into two parts:
+
+Pre + Fork
+	Fork means creating a new process (on Unix-like systems).
+	Pre means it creates those processes before tasks arrive.
+
+So when the worker starts, it immediately creates child processes that are ready to execute tasks.
+
+
+
+Chapter 47 - Thread Pool
+=============================
+Instead of creating multiple child processes like Prefork pool, it will create multiple threads which are lightweight.
+
+celery -A project worker --pool=threads --concurrency=4
+
+It is best for I/O-bound tasks.
+
+Because, of GIL
+
+Python has something called the Global Interpreter Lock (GIL).
+- The GIL allows only one thread at a time to execute Python bytecode within a single Python process.
+
+- Because of this, CPU-intensive Python code generally does not gain true parallel execution from multiple threads.
+
+- That's one of the main reasons Celery uses Prefork as the default pool for CPU-heavy workloads.
+
+
+
+Chapter 48 - Gevent Pool
+==============================
+
+Gevent is a worker pool designed for high-concurrency I/O bound tasks.
+
+Like waiting for API, DB's, pdf upload like those.
+
+celery -A project worker --pool=gevent --concurrency=1000
+
+
+- Instead of processes, threads they are called as greenlets.
+
+
+
+Chapter 49 - Eventlet Pool
+=============================
+
+Same as Gevent. For high concurrency I/O bound tasks. 
+
+celery -A project worker --pool=eventlet --concurrency=1000
+
+
+
+Chapter 50 - Solo Pool
+==========================
+
+The Solo pool is the simplest worker pool in Celery. It run the tasks one by one. Even though the concurrency kept to >1
+
+celery -A project worker --pool=solo
+
+Because, it doesn't support parallel execution.
+
+
+
+Chapter 51 - Multiple Workers
+==================================
+
+While our application grows, we need to handle tasks many tasks. So, instead of one worker we take those with multiple workers.
+
+
+Commands
+------------
+Starting a Single Worker
+celery -A config worker
+Starting a Worker with a Name
+celery -A config worker --hostname=worker1@%h
+
+Example:
+
+celery -A config worker --hostname=email_worker@%h
+
+%h → Hostname of the machine.
+
+Starting a Worker with Concurrency
+celery -A config worker --concurrency=4
+
+Meaning:
+
+Worker
+
+↓
+
+4 execution slots
+Starting Multiple Workers
+Terminal 1
+celery -A config worker --hostname=worker1@%h --concurrency=4
+Terminal 2
+celery -A config worker --hostname=worker2@%h --concurrency=4
+Terminal 3
+celery -A config worker --hostname=worker3@%h --concurrency=4
+
+Now you have:
+
+RabbitMQ
+
+↓
+
+Worker1 (4)
+
+Worker2 (4)
+
+Worker3 (4)
+
+Total execution slots:
+
+12
+Starting Workers with Different Pools
+Prefork (Default)
+celery -A config worker --pool=prefork
+
+or simply
+
+celery -A config worker
+Threads
+celery -A config worker --pool=threads
+Gevent
+celery -A config worker --pool=gevent
+Eventlet
+celery -A config worker --pool=eventlet
+Solo
+celery -A config worker --pool=solo
+Combining Everything
+
+Example:
+
+celery -A config worker \
+    --hostname=email_worker@%h \
+    --pool=prefork \
+    --concurrency=8
+
+This starts:
+
+Worker Name → email_worker
+Pool → Prefork
+Concurrency → 8
+Another Example
+celery -A config worker \
+    --hostname=api_worker@%h \
+    --pool=threads \
+    --concurrency=20
+
+Meaning:
+
+Worker Name
+
+↓
+
+api_worker
+
+↓
+
+Thread Pool
+
+↓
+
+20 Threads
+
+
+
+Chapter 52 - Horizontal Scaling v/s Vertical Scaling
+========================================================
+Vertical scaling means:
+
+Increase the power of one worker.
+
+Initially:
+
+celery -A config worker --hostname=worker1@%h --concurrency=4
+
+Now you increase it to:
+
+celery -A config worker --hostname=worker1@%h --concurrency=8
+
+
+Horizontal scaling means:
+
+Add more workers.
+
+Instead of:
+
+Worker1
+
+You create:
+
+Worker1
+
+Worker2
+
+Worker3
+
+
+Commands:
+
+Worker 1
+celery -A config worker \
+--hostname=worker1@%h \
+--concurrency=4
+
+Worker 2
+celery -A config worker \
+--hostname=worker2@%h \
+--concurrency=4
+
+Worker 3
+celery -A config worker \
+--hostname=worker3@%h \
+--concurrency=4
+
+
+
+
+Chapter 53 - Autoscaling
+==========================
+Autoscaling allows Celery to automatically adjust the number of active child processes based on the workload.
+
+Instead of fixing the concurrency, you provide:
+
+Maximum processes
+Minimum processes
+
+Celery manages the rest.
+
+Syntax
+celery -A config worker --autoscale=10,2
+
+Meaning:
+
+Maximum Processes = 10
+
+Minimum Processes = 2
+
+
+
+
+Chapter 54 - Dedicated Workers
+===============================
+
+Specifiying worker to specfic task itself instead of giving all kinds of tasks to it.
+
+Step 1 – Send Tasks to a Queue
+
+When calling a task:
+
+send_email.apply_async(
+    args=["user@gmail.com"],
+    queue="email"
+)
+
+This task goes to the:
+
+Email Queue
+
+
+Step 2 – Start Dedicated Workers
+
+Email Worker:
+
+celery -A config worker \
+--hostname=email_worker@%h \
+-Q email
+
+This worker only consumes from:
+
+Email Queue
+
+
+
+Chapter 55 - Task Routing
+==================================
+Task Routing means:
+
+Celery automatically sends tasks to the correct queue based on rules you define.
+
+Instead of writing:
+
+send_email.apply_async(
+    queue="email"
+)
+
+You simply write:
+
+send_email.delay()
+
+Configuring Task Routes
+
+In settings.py:
+
+CELERY_TASK_ROUTES = {
+    "notifications.tasks.send_email": {
+        "queue": "email",
+    },
+    "payments.tasks.process_payment": {
+        "queue": "payment",
+    },
+    "images.tasks.resize_image": {
+        "queue": "image",
+    },
+}
+
+
+Chapter 57 - Multiple Queues
+================================
+CELERY_TASK_QUEUES → Defines what queues exist.
+CELERY_TASK_ROUTES → Decides which task goes to which queue.
+
+In settings.py:
+
+from kombu import Queue
+
+CELERY_TASK_QUEUES = (
+    Queue("email"),
+    Queue("payment"),
+    Queue("image"),
+    Queue("report"),
+)
+
+
+
+CELERY_TASK_ROUTES = {
+    "notifications.tasks.send_email": {
+        "queue": "email",
+    },
+    "payments.tasks.process_payment": {
+        "queue": "payment",
+    },
+    "images.tasks.resize_image": {
+        "queue": "image",
+    },
+    "reports.tasks.generate_report": {
+        "queue": "report",
+    },
+}
+
+
+
+Chapter 57 - Queue Priorites
+============================
+Queue Priority allows some tasks to be processed before others.
+
+In settings.py:
+
+from kombu import Queue
+
+CELERY_TASK_QUEUES = (
+    Queue(
+        "email",
+        queue_arguments={
+            "x-max-priority": 10,
+        },
+    ),
+)
+Here:
+
+Maximum Priority = 10
+Valid priorities are typically:
+
+0 → Lowest
+
+10 → Highest
+
+
+Step 2 – Send a Task with Priority
+Example:
+
+send_email.apply_async(
+    args=["user@gmail.com"],
+    priority=9,
+)
+
+
+
+Chapter 58 - Worker Startup
+==============================
+
+celery -A config worker
+
+Step - 1: Load the celery app
+
+Step - 2: Load configuration
+
+Step - 3: Discovery tasks
+
+Step - 4: Connect to RabbitMQ
+
+Step - 5: Connect to Result Backend
+
+Step - 6: Create worker pool
+
+Step - 7: Start listening
+
+
+
+
+Chapter 59 - Graceful Shutdown
+=====================================
+
+Graceful Shutdown means:
+
+Stop accepting new tasks, but finish the tasks that are already running before exiting.
+
+
+
+Chapter 60 - Warm Shutown v/s Cold Shutdown
+=============================================
+Warm Shutdown means:
+
+	Finish the currently running tasks and then exit.
+	
+	
+Cold Shutdown means:
+
+	Stop immediately without waiting for running tasks to finish.
+
+
+
+Chapter 61 - Worker Restart
+===============================
+
+Old Worker
+
+↓
+
+Warm Shutdown
+
+↓
+
+Finish Running Tasks
+
+↓
+
+Worker Stops
+
+↓
+
+Start New Worker
+
+↓
+
+Consumes New Tasks
+
+Best Practices
+
+✅ Restart after changing task code.
+
+✅ Use warm shutdown before restarting.
+
+✅ In production, restart workers one by one (rolling restart) instead of stopping all workers together.
+
+
+
+PHASE 7: Celery Beat & Scheduling
+================================
+
+Module 1: Introduction to Celery Beaat
+
+Chapter 62 - What is Celery Beat?
+============================================
+
+Suppose your company says:
+
+Every day at 12:00 AM, generate yesterday's sales report.
+
+Who will call:
+
+generate_sales_report.delay()
+at exactly 12:00 AM?
+
+There may not even be any users using the website at that time.
+
+So who starts the task?
+
+
+Answer is Celery Beat.
+
+Celery Beat is a scheduler. It doesn't execute tasks. It only decides it's time to run this task. Then it sends the tasks to RabbitMQ and workers execute it.
+
+celery -A config beat
+
+
+
+Chapter 63 - Periodic Tasks
+=============================
+
+But one question remains.
+
+How does Celery Beat know WHEN to send the task?
+
+The answer is:
+
+CELERY_BEAT_SCHEDULE
+
+What is CELERY_BEAT_SCHEDULE?
+It is a dictionary in settings.py that tells Celery Beat:
+
+Which task to run
+
+When to run it
+
+Think of it as Beat's timetable.
+
+
+Ex:
+
+# tasks.py
+
+from celery import shared_task
+
+@shared_task
+def say_hello():
+    print("Hello from Celery Beat")
+    
+
+In settings.py,
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    "say-hello-every-minute": {
+        "task": "myapp.tasks.say_hello",
+        "schedule": 60.0,  // Run for every 60 seconds. If for five minutes it will be 300.00
+    },
+}
+
+
+Multiple Scheduled Tasks
+CELERY_BEAT_SCHEDULE = {
+
+    "send-email": {
+        "task": "notifications.tasks.send_email",
+        "schedule": 60.0,
+    },
+
+    "cleanup": {
+        "task": "core.tasks.cleanup",
+        "schedule": 300.0,
+    },
+
+    "generate-report": {
+        "task": "reports.tasks.generate_report",
+        "schedule": 600.0,
+    }
+
+}
+
+
+Passing Arguments
+Suppose:
+
+@shared_task
+def send_email(email):
+    ...
+Schedule:
+
+CELERY_BEAT_SCHEDULE = {
+
+    "daily-email": {
+
+        "task": "notifications.tasks.send_email",
+
+        "schedule": 60.0,
+
+        "args": ("admin@gmail.com",)
+
+    }
+
+}
+
+
+Passing Keyword Arguments
+CELERY_BEAT_SCHEDULE = {
+
+    "daily-report": {
+
+        "task": "reports.tasks.generate",
+
+        "schedule": 60.0,
+
+        "kwargs": {
+
+            "year": 2026,
+
+            "month": 7
+
+        }
+
+    }
+
+}
+Equivalent to:
+
+generate(year=2026, month=7)
+
+
+
+
+Chapter 64 - Crontab Scheduling
+=====================================
+
+Crontab lets you schedule tasks based on:
+
+	Minute
+
+	Hour
+
+	Day of Month
+
+	Month
+
+	Day of Week
+
+Instead of counting seconds.
+
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+
+    "daily-report": {
+
+        "task": "reports.tasks.generate_report",
+
+        "schedule": crontab(
+
+            minute=0,
+
+            hour=0,
+
+        )
+
+    }
+
+}
+
+day_of_week="monday"
+day_of_week=1
+
+day_of_month=1
+
+month_of_year=12
+
+
+Wildcards,
+
+Suppose:
+
+minute="*"
+
+Means:
+
+Every Minute
+
+Example:
+
+crontab(
+    minute="*"
+)
+
+
+crontab(
+    minute="*/15"
+) -- Every 15 mins
+
+
+Complete Example
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+
+    "daily-report": {
+
+        "task": "reports.tasks.generate",
+
+        "schedule": crontab(
+
+            hour=0,
+
+            minute=0,
+
+        ),
+
+    },
+
+    "weekly-cleanup": {
+
+        "task": "core.tasks.cleanup",
+
+        "schedule": crontab(
+
+            day_of_week="sunday",
+
+            hour=2,
+
+            minute=30,
+
+        ),
+
+    },
+
+}
+
+
+
+Comparison
+Interval				Crontab
+Based on elapsed time			Based on calendar time
+Example: Every 60 seconds		Example: Every day at 9 AM
+Starts counting from when Beat starts	Runs at specific times
+Good for repeated background work	Good for business schedules
+
+
+
+Chapter 65 - Database-backend Schedules (django-celery-beat)
+=================================================================
+
+Instead of writing scheduling in settings.py. We will write those in databases.
+
+CELERY_BEAT_SCHEDULE = {
+    "daily-report": {
+        "task": "reports.tasks.generate",
+        "schedule": crontab(hour=0, minute=0),
+    }
+}
+
+
+Steps,
+pip install django-celery-beat
+
+INSTALLED_APPS = [
+    ...
+    "django_celery_beat",
+]
+
+python manage.py migrate
+
+celery -A config beat \
+    --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    
+
+Ex: Interval Schedule,
+
+from django_celery_beat.models import (
+    IntervalSchedule,
+    PeriodicTask,
+)
+
+schedule, created = IntervalSchedule.objects.get_or_create(
+    every=10,
+    period=IntervalSchedule.SECONDS,
+)
+
+PeriodicTask.objects.create(
+    interval=schedule,
+    name="Say Hello",
+    task="myapp.tasks.say_hello",
+)
+
+
+Crontab Schedule,
+from django_celery_beat.models import (
+    CrontabSchedule,
+    PeriodicTask,
+)
+
+schedule, created = CrontabSchedule.objects.get_or_create(
+    minute="0",
+    hour="2",
+)
+
+PeriodicTask.objects.create(
+    crontab=schedule,
+    name="Daily Report",
+    task="reports.tasks.generate_report",
+)
+
+
+One of the biggest advantages is that django-celery-beat integrates with Django Admin.
+
+
+
+
+Chapter 66 - Dynamic Schedule Updates
+=======================================
+Because schedules are stored in the database and can be modified while Celery Beat is running.
+
+
+
+Chapter 67 - Production Scheduling Best Practices
+======================================================
+
+- Run Only One Celery Beat
+- Use Multiple workers
+- Make Scheduled Tasks idempotent
+- Keep Beat Lightweight
+- Don't Schedule Extremely Frequent Heavy Tasks // Generate PDF every second
+- Monitor Scheduled Tasks
+- Separate Different Workloads
+- Handle Long-Running Tasks carefully
+- Keep time zones consistent
+
+
+
+PHASE 8 - Monitoring & Debugging
+==================================
+
+
+Module 1 - Worker Inspection
+
+
+Chapter 68 - Inspecting Workers
+===================================
+What is Inspect?
+
+Think of it like asking a worker:
+
+	Hey Worker...
+
+	What are you doing?
+
+The worker replies with information.
+
+It does not change anything.
+
+It only returns information.
+
+
+Basic Syntax
+celery -A config inspect <command>
+
+Examples:
+
+celery -A config inspect active
+celery -A config inspect reserved
+celery -A config inspect stats
+
+
+Command 1 — Ping
+
+This is the simplest inspection command.
+
+celery -A config inspect ping
+
+Suppose you have three workers A, B, and C
+
+O/p:
+Worker A
+
+↓
+
+pong
+
+----------------
+
+Worker B
+
+↓
+
+pong
+
+----------------
+
+Worker C
+
+↓
+
+pong
+
+Means all workers are alive
+
+
+
+Command 2 — Active
+celery -A config inspect active
+
+Shows:
+
+Currently Running Tasks
+
+Example:
+
+Worker A
+
+↓
+
+process_payment()
+
+----------------
+
+Worker B
+
+↓
+
+generate_pdf()
+
+Meaning:
+
+Those tasks are executing right now.
+
+
+
+Command 3 — Reserved
+celery -A config inspect reserved
+
+Shows:
+
+Tasks Already Reserved
+
+But
+
+Not Started Yet
+
+Example:
+
+Worker A
+
+↓
+
+Task 1
+
+↓
+
+Task 2
+
+These tasks have already been received from RabbitMQ but are waiting for a free execution slot.
+
+
+
+Command 4 — Scheduled
+celery -A config inspect scheduled
+
+Shows:
+
+Tasks Scheduled
+
+For Future Execution
+
+Example:
+
+Suppose:
+
+send_email.apply_async(
+    countdown=300
+)
+
+The task is waiting:
+
+5 Minutes
+
+During those five minutes:
+
+inspect scheduled
+
+shows it.
+
+
+
+
+
+Command 5 — Stats
+celery -A config inspect stats
+
+Shows worker information.
+
+Example:
+
+Worker Name
+
+Concurrency
+
+Pool
+
+Broker
+
+PID
+
+Version
+
+Useful for checking worker configuration.
+
+
+
+Command 6 — Registered
+celery -A config inspect registered
+
+Shows:
+
+All Registered Tasks
+
+Example:
+
+send_email
+
+process_payment
+
+resize_image
+
+generate_report
+
+Useful when debugging:
+
+Task Not Registered
+
+errors.
+
+
+
+Chapter 69 - Control Commands
+===============================
+
+In last chapter we learnt commands for observing. Now, we will learn how to control them
+
+Basic Syntax
+celery -A config control <command>
+
+
+Command 1 — Shutdown
+
+Suppose you have:
+
+Worker A
+
+Worker B
+
+Worker C
+
+Command:
+
+celery -A config control shutdown
+
+Result:
+
+Worker A
+
+↓
+
+Shutdown
+
+----------------
+
+Worker B
+
+↓
+
+Shutdown
+
+----------------
+
+Worker C
+
+↓
+
+Shutdown
+
+All workers receive the shutdown command.
+
+Remember from the Worker Lifecycle chapter:
+
+Normally this performs a graceful (warm) shutdown, allowing running tasks to finish before exiting.
+
+
+
+Command 2 — Revoke
+
+This is one of the most useful commands.
+
+Suppose a task is waiting.
+
+RabbitMQ
+
+↓
+
+send_email()
+
+↓
+
+Worker
+
+Suddenly your manager says:
+
+Don't send that email.
+
+If you know the task ID, you can revoke it.
+
+Syntax:
+
+celery -A config control revoke <task_id>
+
+Example:
+
+celery -A config control revoke 8d0d7f9d...
+
+Meaning:
+
+Don't execute this task.
+
+
+
+
+Revoke depends on the state of that task
+- If that task not started, then after marking it as revoke. No worker take that task.
+- If the task is running, it will be marked as revoke. But by default, the running task is usually allowed to finish.
+
+To terminate it completely of the running task, we need to force it.
+
+celery -A config control revoke \
+<task_id> \
+--terminate
+
+This sends a termination signal to the worker process executing that task.
+
+⚠️ Use this carefully because the task may stop in the middle of its work.
+
+
+
+
+Chapter 70 - Purging Queues
+===============================
+Scenario: No worker has taken them yet.
+
+Now your manager says:
+
+These tasks are wrong. Delete them all.
+
+How do you do that?
+
+The answer is:
+
+Purge the Queue
+
+
+Purge means: Delete all pending tasks from the queue.
+
+celery -A config purge
+
+
+When Should You Use Purge?
+Good situations:
+
+	Wrong tasks accidentally queued.
+
+	Testing environment cleanup.
+
+	Development environment cleanup.
+
+	Bug discovered before execution.
+
+
+Comparison
+Purge				Revoke
+Deletes all pending tasks	Cancels one task
+Works on the queue		Works using a task ID
+Very dangerous			More targeted
+Used rarely			Used more often
+
+
+
+
+Module 2: Flower Monitoring
+
+Chapter - 71: What is Flower?
+===================================
+Flower is a web-based monitoring dashboard for Celery.
+
+Instead of using terminal commands, you open a browser and see everything visually.
+
+Think of it as the Django Admin for Celery.
+
+
+pip install flower
+
+Start Flower
+	celery -A config flower
+
+By default it starts on:
+
+	http://localhost:5555
+
+Open your browser.
+
+You'll see the dashboard.
+
+
+Production Port
+You can also specify another port.
+
+	celery -A config flower --port=8000
+	
+
+
+
+Chapter 72 - Tasks States in Flower
+====================================
+
+- PENDING
+- RECEIVED
+- STARTED
+- RETRY
+- SUCCESS
+- FAILURE
+- REVOKED
+
+
+
+Chapter 73 - Debugging Failed Tasks
+=========================================
+
+Step - 1: Check Flower
+Step - 2: Read the Exception
+Step - 3: Check Task Arguments
+Step - 4: Check Retry Count
+Step - 5: Check Worker Logs
+
+
+Questions to ask yourself,
+
+1) Did the task actually execute?
+2) What exception occurred?
+3) Were the task arguments correct?
+4) Is this a temporary failure?
+5) Is this a permanent failure?
+
+
+
+
+Module 3 - Monitoring Best Practices
+
+Chapter 74 - Task Events & Worker Events
+============================================
+But one question remains:
+
+How does Flower know that a task started, succeeded, or failed?
+
+The answer is:
+
+Events
+
+
+
+An event is simply a notification sent by Celery. 
+
+
+There are two major categories.
+
+a) Task Events: These tell what happened to a task.
+
+Task received, started, retry, success, failure, revoked
+
+
+b) Worker Events: These tell what happened to a worker.
+Worker online, worker offline and worker heartbeat.
+
+Worker heartbeat - Every worker periodically tells the system:
+	I'm Alive
+	
+
+
