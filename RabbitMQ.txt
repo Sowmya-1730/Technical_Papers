@@ -1,0 +1,472 @@
+Chapter - 1: Why RabbitMQ Exists?
+=======================================
+
+Problem - Solution: Solving communications and background processing problems.
+
+- Think of RabbitMQ as a highly reliable office mailbox.
+
+Instead of saying directly,
+	"Email service, send this email now!"
+the application says,
+	"RabbitMQ, here's a message. Please keep it safe."
+	
+Key take away,
+-----------------
+RabbitMQ exists to let applications hand off work so it can be processed later or by another component, instead of making the user wait.
+
+
+
+Chapter - 2: What is a Queue?
+================================
+A queue is a temporary storage area where messages wait until a consumer processes them. Think of it like a waiting room for messages.
+
+It follows FIFO or LILO
+
+
+Chapter - 3: Producer?
+=========================
+A producer is an application or component that creates a message and publishes it to RabbitMQ. Its job ends once the message has been successfully published.
+
+
+Ex: You want to send a parcel to your friend through courier.
+
+You - producer # who produce the parcel
+Courier office - Queue (like rabbitmq which stores)
+Friend - Consumer # who consumes that parcel
+
+
+
+Chapter - 4: Consumer?
+==============================
+
+A Consumer is an application or component that receives messages from a RabbitMQ queue and processes them.
+
+
+Chapter - 5: Exchange (The Brain of RabbitMQ)
+==============================================
+
+It decides to which queue this message need to go which it was taken from Producer.
+
+An Exchange is a RabbitMQ component that receives messages from Producers and decides which Queue or Queues should receive them. It won't store any message it just based on the message it changes the direction of that messages to its destined queues.
+
+
+Architecture Flow: 
+
+Producer --> Exchange --> Queue --> Consumer.
+
+Now, how it will decides to which queue it needs to go of that message. The answer lies in types of exchanges.
+
+Types: 
+---------
+i) Direct Exchange - I'll send the message only to the queue whose binding exactly matches the routing key.
+ii) Fanout Exchange - I don't care about the routing key. I'll send to all the queues.
+iii) Topic Exchange - I'll use pattern matching.
+iv) Headers Exchange - I don't use routing keys. Instead, I examine message headers. I'm the one which applications use least.
+
+
+
+Chapter - 6: Routing Key
+================================
+
+It was like to go to this queue of that particular message through exchange. It needs to know how to go there. It will be done by routing key.
+
+OD: A Routing Key is a string sent along with a message that helps the Exchange decide which queue(s) should receive that message.
+
+RabbitMQ Example
+Suppose the Producer creates this message.
+
+{
+    "email": "sri@gmail.com"
+}
+But it also sends:
+
+Routing Key = email
+So internally, it looks something like this.
+
+Message
+
+↓
+
+{
+    email: "sri@gmail.com"
+}
+
+Routing Key
+
+↓
+
+email
+The Exchange reads:
+
+Routing Key = email
+
+and knows how to route it.
+
+
+Now, exchange received routing key. Now, how it know this routing key goes to this queue.
+It will be done by Binding.
+
+
+Takeaway: A Routing Key is like an address label attached to a message. It helps the Exchange decide where the message should be routed, based on the routing rules that have been configured.
+
+
+Chapter - 7: Binding
+===========================
+A Binding is a rule that connects and Exchange to a Queue.
+
+It tells to Exchange, 
+	"If you receive a message that matches this rule, send it to this Queue."
+	
+The mappings will be called as Bindings.
+
+Like email to Email Queue
+
+If one routing key has multiple bindings. Then, it goes to all bindings it has.
+
+Ex: routing key = email
+
+Bindings,
+
+email -> Email Queue and email -> Audit Queue
+
+Now, this based on the binding rules, it goes to these two queues.
+
+
+
+Chapter - 8: Direct Exchange
+=================================
+OD: A Direct Exchange routes a message to the queue whose Binding Key exactly matches the Routing Key.
+
+- Producer sends Routing Key and Binding rules have Binding Key. Now, the Exchange compares them. If they match it will go that Queue.
+
+- Checking will done based on the key. If one binding rule key not matched, then it goes to another binding rule key.
+
+- If suppose, if any binding key not matches with the Routing key. Then, it will be discarded by default. 
+
+- In direct exchange, routing key may match to multiple binding keys also. So, it will send to both Queues also.
+
+
+
+Chapter - 9: Fanout Exchange
+===================================
+OD: A Fanout Exchange routes every message to all queues that are bound to it, regardless of the Routing Key.
+
+
+July 9
+
+PHASE - 2
+
+Chapter - 10: Topic Exchange
+===================================
+Here, in this exchange. It will work on patterns. Suppose, for payment itself there will be multiple patterns like patterns.success, payment.retry, payment.failure. Will we create multiple binds for it through Direct Exchange. No, right. Because it will be hectic. 
+
+So, this exchange will have something like payment.*
+
+Here, * is a wildcard. It takes exactly word after payment. So, whatever, that word might will always goes into payment things.
+
+
+Another wildcard is, #
+
+It accepts as many words after first word which is main part.
+
+order.created,
+order.created.email,
+order.create.email.success
+
+
+Chapter - 11: Direct Exchange v/s Topic Exchange
+==================================================
+Direct exchange will be used when we want specific and fixed routing.
+Topic Exchange will be used when we have multiple things and want flexible routing.
+
+
+Chapter - 12: Header Exchange
+=================================
+Sometimes, the routing key itself isn't enough. So, it need some more information those will be key-value pairs which will be attached to messages. Called Headers.
+
+There is one attribute x-match. It tells whether all headers need to be match or any one of it. all or any
+
+
+Chapter - 13: x-match
+==========================
+
+x-match = all -> To send the message if everything in the headers satisfies with binding.
+x-match = any -> To send the message if atleast one is satisfied.
+
+
+Chapter - 14: Acknowledgments (ACK)
+=====================================
+It was like, telling this work is done by consume to queue. So, it will remove that message from the queue.
+
+ACK menas: "I have successfully processed this message. You can safely remove it now."
+
+
+Chapter - 15: Negative Acknowledgement (NACK)
+====================================================
+It was like I cound NOT complete this work.
+
+So, it requeue. Put the message back into queue so it can be processed again.
+
+So, here also there will be problem. If suppose, the database is temporarily unavailable. It keeps on sending NACK and Requeue. It will go infinite retry loop. This can be later work on through Dead Letter Queue (DLQ)
+
+Requeue = true, put it back in queue
+Requeue = false, discard or route to a Dead Letter Queue.
+
+
+Chapter - 16: Durable Queue v/s Persistent Messages
+=======================================================
+
+A Durable Queue remembers that this queue exists, even after a server restart
+
+A Persistent Message means, Store this message on disk so it can survive a RabbitMQ restart.
+
+
+
+Chapter -17: What Happens When a Consumer Crashes before sending any ACK, NACK, Requeue?
+==========================================================================================
+
+Messages have states,
+In queue,
+Deleted 
+Along with those it also has,
+
+Ready -> Unacknowledged (waiting in queue) -> Deleted (Received ACK)
+
+Queue keeps connection with messages consumer. If that lost, it will understand that consumer is gone. I need to make unacknowledges state message to ready of that consumer message.
+
+Message will be redelivered.
+
+
+PHASE - 3
+
+Chapter - 18: Prefetch Count (QoS)
+=========================================
+The maximum number of unacknowledged messages RabbitMQ is allowed to give a consumer at one time.
+
+If prefetch is 1, then it can only send unacknowledged message to the worker and wait for ACK, and send another task
+
+It it was 3, then it can most 3 tasks and wait until receives ACK and then it can assign the tasks to the worker
+
+
+
+Chapter - 19: Round Robin Dispatch v/s Fair Dispatch
+======================================================
+
+RabbitMQ distributes messages equally without considering whether a consumer is busy or free. Like Round Robin Algorithm
+
+RabbitMQ distributes messages with considering who is available in the workers and send the task to it. Here, we use prefetch mostly 1. 
+
+
+
+Chapter - 20: Dead Letter Queue (DLQ)
+===========================================
+
+A normal RabbitMQ that receives messages RabbitMQ cannot process normally anymore. It will be used for debug purpose also.
+
+
+
+Chapter - 21: Message TTL (Time to Live)
+==============================================
+It will be used at the time of OTP. Like,
+otp was generated and is there in queue and it will be valid only for 5 minutes. And if consumer came late and taken that message after 10mins and sent to the user. Will that otp be valid for the user. No, right?
+
+So, this TTL will save that. If any message TTL expires with the set time value. It will removed or send it to DLQ if configured.
+
+Ex: OTPs, password reset links, temporary notifications, live stock prices, live sport updates, real-time chat typing indicators, and flash sale alerts
+
+
+Chapter - 22: Queue TTL (Time to Live)
+===============================================
+
+If a queue remains unused for a specific period amount of time, RabbitMQ can automatically delete the queue.
+
+
+
+Chapter - 23: Retry Mechanisms
+=====================================
+
+For this the question will be like, how we can retry it. 
+There will be two problems, temporary and permanent. 
+Temporary like server down, service not available. So, retry need to be done.
+After some seconds, and it counts, if the retry count balances with the trials. Then, it will move to DLQ
+
+Permanent are like invalid input
+
+
+
+Chapter - 24: Delay Queues
+=================================
+The waiting period between retries will be called as delay. 
+
+A queue where messages wait for a certain amount of time before being processed or forwarded.
+
+If we retry immediately after failure it creates Retry Storm. Instead, we will wait for sometime which is delay and send it.
+
+If suppose, Retry Delay = 30sec. 
+After 30sec, it will move from waiting queue to main queue.
+
+
+
+Chapter - 25: Publisher Confirm
+==================================
+
+It is the acknowledgement from RabbitMQ saying that I got this message.
+
+Flow:
+
+User clicks on Submit -> Producer -> RabbitMQ gets the message -> Publisher Confirm -> Stores the message in Queue -> Consumer -> Judge0 works -> Success by judge0 -> Consumer ACK -> RabbitMQ removes the message
+
+
+
+Chapter - 26: Mandatory Flag
+================================
+
+If suppose, producer sent routing key as sms and there is no binding key matches with sms. So by default, the message will be discarded. Is it good, no?
+
+So, producer sends Mandatory = true flag along with message. So whenever, the RabbitMQ cannot able to route through keys, it tells the Producer that it cannot route as there is no queue with that. So, the producer can know.
+
+
+Chapter - 27: Alternate Exchange
+==================================
+So, whenever we don't have any route instead of telling to that i cannot send. It will tell that I don't have route, but I'll take care of it.
+- RabbitMQ forwards an unroutable message to another exchange
+
+
+
+Chapter - 28: RabbitMQ Clustering
+====================================
+
+If we only have one RabbitMQ server. We can have SPOF.
+
+Single Point of Failure(SPOF): A component whose failure stops the whole system.
+
+So, instead of RabbitMQ, we will use -
+
+RabbitMQ Node A
+RabbitMQ Node B
+RabbitMQ Node C
+
+Which is called RabbitMQ Clustering
+
+Important Clarification
+A cluster does not automatically mean every message is copied to every node.
+
+This is one of the biggest beginner misunderstandings.
+
+A cluster mainly shares metadata (definitions like exchanges, queues, users, permissions).
+
+Message replication depends on additional features, such as quorum queues or mirrored queue mechanisms, which we'll discuss conceptually later.
+
+
+What Is Shared?
+Generally, the cluster shares:
+
+Exchanges
+
+Queue definitions
+
+Bindings
+
+Users
+
+Permissions
+
+Virtual hosts
+
+Think of these as the configuration of RabbitMQ.
+
+
+
+
+Chapter - 29: What is a Channel?
+
+A Channel is a virtual connection inside a TCP connection.
+Think of it like this:
+
+Application
+
+↓
+
+TCP Connection
+
+↓
+
+Channel 1
+
+Channel 2
+
+Channel 3
+
+Channel 4
+
+One TCP connection can have many channels.
+
+Why not just create multiple TCP connections?
+
+Suppose your Django app has to:
+
+Publish submission messages
+Publish email notifications
+Consume Judge0 results
+Consume analytics jobs
+
+What does a Channel do?
+
+Almost everything you do with RabbitMQ happens through a channel.
+
+For example:
+
+Declare an exchange
+Declare a queue
+Create a binding
+Publish a message
+Consume a message
+Send ACK/NACK
+
+All of these are channel operations.
+
+Connection vs Channel
+Connection				Channel
+Physical TCP connection			Virtual connection inside the TCP connection
+Expensive to create			Lightweight
+Usually only a few per application	Often many per connection
+If it closes, all channels close	Closing one channel doesn't necessarily affect the others
+
+Now let's add the missing layer:
+
+Producer
+
+↓
+
+Channel
+
+↓
+
+Connection
+
+↓
+
+RabbitMQ
+
+↓
+
+Exchange
+
+↓
+
+Queue
+
+↓
+
+Channel
+
+↓
+
+Connection
+
+↓
+
+Consumer
+
+
+
