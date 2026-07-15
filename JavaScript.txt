@@ -1,0 +1,1146 @@
+Code structure:
+-----------------
+Statements are delimited with a semicolon:
+
+alert('Hello'); alert('World');
+Usually, a line-break is also treated as a delimiter, so that would also work:
+
+alert('Hello')
+alert('World')
+That’s called “automatic semicolon insertion”. Sometimes it doesn’t work, for instance:
+
+alert("There will be an error after this message")
+
+[1, 2].forEach(alert)
+Most codestyle guides agree that we should put a semicolon after each statement.
+
+Semicolons are not required after code blocks {...} and syntax constructs with them like loops:
+
+
+
+
+Function:
+----------
+function f() {
+  // no semicolon needed after function declaration
+}
+
+Loop:
+--------
+for(;;) {
+  // no semicolon needed after the loop
+}
+…But even if we can put an “extra” semicolon somewhere, that’s not an error. It will be ignored.
+
+
+
+More in: Code structure.
+--------------------------
+Strict mode
+To fully enable all features of modern JavaScript, we should start scripts with "use strict".
+
+'use strict';
+
+...
+The directive must be at the top of a script or at the beginning of a function body.
+
+Without "use strict", everything still works, but some features behave in the old-fashioned, “compatible” way. We’d generally prefer the modern behavior.
+
+Some modern features of the language (like classes that we’ll study in the future) enable strict mode implicitly.
+
+More in: The modern mode, "use strict".
+
+
+
+
+Variables:
+-----------------
+Can be declared using:
+
+let
+const (constant, can’t be changed)
+var (old-style, will see later)
+A variable name can include:
+
+Letters and digits, but the first character may not be a digit.
+Characters $ and _ are normal, on par with letters.
+Non-Latin alphabets and hieroglyphs are also allowed, but commonly not used.
+Variables are dynamically typed. They can store any value:
+
+let x = 5;
+x = "John";
+
+There are 8 data types:
+- number for both floating-point and integer numbers,
+- bigint for integer numbers of arbitrary length,
+- string for strings,
+- boolean for logical values: true/false,
+- null – a type with a single value null, meaning “empty” or “does not exist”,
+- undefined – a type with a single value undefined, meaning “not assigned”,
+- object and symbol – for complex data structures and unique identifiers, we haven’t learnt them yet.
+The typeof operator returns the type for a value, with two exceptions:
+
+typeof null == "object" // error in the language
+typeof function(){} == "function" // functions are treated specially
+More in: Variables and Data types.
+
+
+
+Interaction:
+--------------------
+We’re using a browser as a working environment, so basic UI functions will be:
+a) prompt(question, [default])
+Ask a question, and return either what the visitor entered or null if they clicked “cancel”.
+b) confirm(question)
+Ask a question and suggest to choose between Ok and Cancel. The choice is returned as true/false.
+c) alert(message)
+Output a message.
+All these functions are modal, they pause the code execution and prevent the visitor from interacting with the page until they answer.
+
+For instance:
+
+let userName = prompt("Your name?", "Alice");
+let isTeaWanted = confirm("Do you want some tea?");
+
+alert( "Visitor: " + userName ); // Alice
+alert( "Tea wanted: " + isTeaWanted ); // true
+More in: Interaction: alert, prompt, confirm.
+
+
+
+
+Operators:
+---------------------
+JavaScript supports the following operators:
+
+Arithmetical
+Regular: * + - /, also % for the remainder and ** for power of a number.
+
+The binary plus + concatenates strings. And if any of the operands is a string, the other one is converted to string too:
+
+alert( '1' + 2 ); // '12', string
+alert( 1 + '2' ); // '12', string
+
+
+Assignments
+There is a simple assignment: a = b and combined ones like a *= 2.
+
+Bitwise
+Bitwise operators work with 32-bit integers at the lowest, bit-level: see the docs when they are needed.
+
+
+Conditional
+The only operator with three parameters: cond ? resultA : resultB. If cond is truthy, returns resultA, otherwise resultB.
+
+
+Logical operators
+Logical AND && and OR || perform short-circuit evaluation and then return the value where it stopped (not necessary true/false). Logical NOT ! converts the operand to boolean type and returns the inverse value.
+
+
+Nullish coalescing operator
+The ?? operator provides a way to choose a defined value from a list of variables. The result of a ?? b is a unless it’s null/undefined, then b.
+
+
+Comparisons
+Equality check == for values of different types converts them to a number (except null and undefined that equal each other and nothing else), so these are equal:
+
+alert( 0 == false ); // true
+alert( 0 == '' ); // true
+Other comparisons convert to a number as well.
+
+The strict equality operator === doesn’t do the conversion: different types always mean different values for it.
+
+Values null and undefined are special: they equal == each other and don’t equal anything else.
+
+Greater/less comparisons compare strings character-by-character, other types are converted to a number.
+
+Other operators
+There are few others, like a comma operator.
+
+More in: Basic operators, maths, Comparisons, Logical operators, Nullish coalescing operator '??'.
+
+
+
+
+
+Loops:
+------------
+We covered 3 types of loops:
+
+// 1
+while (condition) {
+  ...
+}
+
+// 2
+do {
+  ...
+} while (condition);
+
+// 3
+for(let i = 0; i < 10; i++) {
+  ...
+}
+The variable declared in for(let...) loop is visible only inside the loop. But we can also omit let and reuse an existing variable.
+
+Directives break/continue allow to exit the whole loop/current iteration. Use labels to break nested loops.
+
+
+
+The “switch” construct
+The “switch” construct can replace multiple if checks. It uses === (strict equality) for comparisons.
+
+For instance:
+
+let age = prompt('Your age?', 18);
+
+switch (age) {
+  case 18:
+    alert("Won't work"); // the result of prompt is a string, not a number
+    break;
+
+  case "18":
+    alert("This works!");
+    break;
+
+  default:
+    alert("Any value not equal to one above");
+}
+
+
+
+
+Functions:
+--------------
+We covered three ways to create a function in JavaScript:
+
+Function Declaration: the function in the main code flow
+function sum(a, b) {
+  let result = a + b;
+  return result;
+}
+
+
+Function Expression: the function in the context of an expression
+let sum = function(a, b) {
+  let result = a + b;
+  return result;
+};
+
+
+Arrow functions:
+// expression on the right side
+let sum = (a, b) => a + b;
+
+// or multi-line syntax with { ... }, need return here:
+let sum = (a, b) => {
+  // ...
+  return a + b;
+}
+
+// without arguments
+let sayHi = () => alert("Hello");
+
+// with a single argument
+let double = n => n * 2;
+
+
+Functions may have local variables: those declared inside its body or its parameter list. Such variables are only visible inside the function.
+Parameters can have default values: function sum(a = 1, b = 2) {...}.
+Functions always return something. If there’s no return statement, then the result is undefined.
+
+
+
+
+
+
+CODE QUALITY:
+===================
+
+Debugging in the browser:
+------------------
+debugger is the keyword to debug the code to set breakpoint and watch it over the dev tools console.
+
+
+As we can see, there are three main ways to pause a script:
+
+A breakpoint.
+The debugger statements.
+An error (if dev tools are open and the button  is “on”).
+When paused, we can debug: examine variables and trace the code to see where the execution goes wrong.
+
+
+Style Guide: ESLint newest one
+------------
+
+npm install -g eslint
+
+
+Behavior Driven Development:
+-----------------------
+It will be useful at the time of testing.
+
+describe("pow", function() {
+
+  it("raises to n-th power", function() {
+    assert.equal(pow(2, 3), 8);
+  });
+
+});
+
+A spec has three main building blocks that you can see above:
+
+describe("title", function() { ... })
+What functionality we’re describing? In our case we’re describing the function pow. Used to group “workers” – the it blocks.
+
+it("use case description", function() { ... })
+In the title of it we in a human-readable way describe the particular use case, and the second argument is a function that tests it.
+
+assert.equal(value1, value2)
+The code inside it block, if the implementation is correct, should execute without errors.
+
+Functions assert.* are used to check whether pow works as expected. Right here we’re using one of them – assert.equal, it compares arguments and yields an error if they are not equal. Here it checks that the result of pow(2, 3) equals 8. There are other types of comparisons and checks, that we’ll add later.
+
+The specification can be executed, and it will run the test specified in it block. We’ll see that later.
+
+
+- Mocha – the core framework: it provides common testing functions including describe and it and the main function that runs tests.
+- Chai – the library with many assertions. It allows to use a lot of different assertions, for now we need only assert.equal.
+- Sinon – a library to spy over functions, emulate built-in functions and more, we’ll need it much later.
+
+
+
+Transpilers and Polyfills:
+============================
+
+How to make our modern code work on older engines that don't understand recent features yet?
+
+There are two tools for that:
+-> Transpilers: A transpiler is a special piece of software that translates source code to another source code. It can parse modern code and rewrite it using older syntax constructs, so that it'll also work in outdated engines.
+Ex:
+// before running the transpiler
+height = height ?? 100;
+
+// after running the transpiler
+height = (height !== undefined && height !== null) ? height : 100;
+
+- Babel is one of the most prominent transpilers out there.
+
+-> Polyfills: New language features may include not only syntax constructs and operators, but also built-in functions. So, at that these polyfills will fill that gap.
+Ex:
+if (!Math.trunc) { // if no such function
+  // implement it
+  Math.trunc = function(number) {
+    // Math.ceil and Math.floor exist even in ancient JavaScript engines
+    // they are covered later in the tutorial
+    return number < 0 ? Math.ceil(number) : Math.floor(number);
+  };
+}
+
+
+
+
+
+OBJECTS: THE BASICS:
+=======================
+An empty object (“empty cabinet”) can be created using one of two syntaxes:
+
+let user = new Object(); // "object constructor" syntax
+let user = {};  // "object literal" syntax
+
+
+let user = {     // an object
+  name: "John",  // by key "name" store value "John"
+  age: 30        // by key "age" store value 30
+};
+
+The value can be of any type. Let’s add a boolean one:
+user.isAdmin = true;
+
+To remove a property, we can use the delete operator:
+delete user.age;
+
+- We can also use multiword property names, but then they must be quoted
+- For multiword properties, the dot access doesn’t work:
+
+// this would give a syntax error
+user.likes birds = true
+
+There’s an alternative “square bracket notation” that works with any string:
+let user = {};
+// set
+user["likes birds"] = true;
+
+// get
+alert(user["likes birds"]); // true
+
+// delete
+delete user["likes birds"];
+
+
+Property names limitations
+As we already know, a variable cannot have a name equal to one of the language-reserved words like “for”, “let”, “return” etc.
+
+But for an object property, there’s no such restriction:
+// these properties are all right
+let obj = {
+  for: 1,
+  let: 2,
+  return: 3
+};
+
+alert( obj.for + obj.let + obj.return );  // 6
+
+
+- There’s a minor gotcha with a special property named __proto__. We can’t set it to a non-object value:
+
+let obj = {};
+obj.__proto__ = 5; // assign a number
+alert(obj.__proto__); // [object Object] - the value is an object, didn't work as intended
+As we see from the code, the assignment to a primitive 5 is ignored.
+
+
+
+
+For instance, let’s output all properties of user:
+
+let user = {
+  name: "John",
+  age: 30,
+  isAdmin: true
+};
+
+for (let key in user) {
+  // keys
+  alert( key );  // name, age, isAdmin
+  // values for the keys
+  alert( user[key] ); // John, 30, true
+}
+
+
+
+Object references and copying:
+------------------------------------
+One of the fundamental differences of objects versus primitives is that objects are stored and copied “by reference”, whereas primitive values: strings, numbers, booleans, etc – are always copied “as a whole value”.
+
+
+
+Cloning and merging, Object.assign:
+--------------------------------------
+So, copying an object variable creates one more reference to the same object.
+
+But what if we need to duplicate an object?
+
+We can create a new object and replicate the structure of the existing one, by iterating over its properties and copying them on the primitive level.
+
+Like this:
+
+let user = {
+  name: "John",
+  age: 30
+};
+
+let clone = {}; // the new empty object
+
+// let's copy all user properties into it
+for (let key in user) {
+  clone[key] = user[key];
+}
+
+// now clone is a fully independent object with the same content
+clone.name = "Pete"; // changed the data in it
+
+alert( user.name ); // still John in the original object
+
+
+We can also use the method Object.assign:
+--------------------------------------------------------------------
+The syntax is:
+
+Object.assign(dest, ...sources)
+The first argument dest is a target object.
+Further arguments is a list of source objects.
+It copies the properties of all source objects into the target dest, and then returns it as the result.
+
+For example, we have user object, let’s add a couple of permissions to it:
+
+let user = { name: "John" };
+let permissions1 = { canView: true };
+let permissions2 = { canEdit: true };
+// copies all properties from permissions1 and permissions2 into user
+Object.assign(user, permissions1, permissions2);
+// now user = { name: "John", canView: true, canEdit: true }
+alert(user.name); // John
+alert(user.canView); // true
+alert(user.canEdit); // true
+
+
+If the copied property name already exists, it gets overwritten:
+
+let user = { name: "John" };
+Object.assign(user, { name: "Pete" });
+alert(user.name); // now user = { name: "Pete" }
+
+We also can use Object.assign to perform a simple object cloning:
+let user = {
+  name: "John",
+  age: 30
+};
+let clone = Object.assign({}, user);
+alert(clone.name); // John
+alert(clone.age); // 30
+
+
+
+
+structuredClone: (Alias Nested cloning to differ source and destination reference)
+The call structuredClone(object) clones the object with all nested properties.
+Here’s how we can use it in our example:
+
+let user = {
+  name: "John",
+  sizes: {
+    height: 182,
+    width: 50
+  }
+};
+
+let clone = structuredClone(user);
+alert( user.sizes === clone.sizes ); // false, different objects
+// user and clone are totally unrelated now
+user.sizes.width = 60;    // change a property from one place
+alert(clone.sizes.width); // 50, not related
+
+
+
+
+It also supports circular references, when an object property references the object itself (directly or via a chain or references).
+
+For instance:
+let user = {};
+// let's create a circular reference:
+// user.me references the user itself
+user.me = user;
+
+let clone = structuredClone(user);
+alert(clone.me === clone); // true
+
+
+
+
+Garbage Collection:
+-----------------------
+Unreachable references are deleted automatically by garbage collector.
+
+
+Object methods, "this":
+--------------
+A function that is a property of an object is called its method.
+
+For instance, here the same function is assigned to two different objects and has different “this” in the calls:
+
+let user = { name: "John" };
+let admin = { name: "Admin" };
+
+function sayHi() {
+  alert( this.name );
+}
+
+// use the same function in two objects
+user.f = sayHi;
+admin.f = sayHi;
+
+// these calls have different this
+// "this" inside the function is the object "before the dot"
+user.f(); // John  (this == user)
+admin.f(); // Admin  (this == admin)
+
+admin['f'](); // Admin (dot or square brackets access the method – doesn't matter)
+
+
+Arrow functions have no “this”
+Arrow functions are special: they don’t have their “own” this. If we reference this from such a function, it’s taken from the outer “normal” function.
+
+For instance, here arrow() uses this from the outer user.sayHi() method:
+let user = {
+  firstName: "Ilya",
+  sayHi() {
+    let arrow = () => alert(this.firstName);
+    arrow();
+  }
+};
+user.sayHi(); // Ilya
+
+
+Constructor function: Constructor functions technically are regular functions. There are two conventions though:
+
+They are named with capital letter first.
+They should be executed only with "new" operator.
+For instance:
+
+function User(name) {
+  this.name = name;
+  this.isAdmin = false;
+}
+
+let user = new User("Jack");
+alert(user.name); // Jack
+alert(user.isAdmin); // false
+
+
+Return from constructors: 
+----------------------------
+Usually, constructors do not have a return statement. Their task is to write all necessary stuff into this, and it automatically becomes the result.
+
+But if there is a return statement, then the rule is simple:
+- If return is called with an object, then the object is returned instead of this.
+- If return is called with a primitive, it’s ignored.
+In other words, return with an object returns that object, in all other cases this is returned.
+
+For instance, here return overrides this by returning an object:
+function BigUser() {
+  this.name = "John";
+  return { name: "Godzilla" };  // <-- returns this object
+}
+
+alert( new BigUser().name );  // Godzilla, got that object
+
+And here’s an example with an empty return (or we could place a primitive after it, doesn’t matter):
+function SmallUser() {
+  this.name = "John";
+  return; // <-- returns this
+}
+alert( new SmallUser().name );  // John
+
+Usually constructors don’t have a return statement. Here we mention the special behavior with returning objects mainly for the sake of completeness.
+
+
+
+Methods in constructor:
+-----------------------------
+Using constructor functions to create objects gives a great deal of flexibility. The constructor function may have parameters that define how to construct the object, and what to put in it.
+
+Of course, we can add to this not only properties, but methods as well.
+For instance, new User(name) below creates an object with the given name and the method sayHi:
+
+function User(name) {
+  this.name = name;
+  this.sayHi = function() {
+    alert( "My name is: " + this.name );
+  };
+}
+let john = new User("John");
+john.sayHi(); // My name is: John
+
+
+
+Optional-Chaining:
+--------------------
+The optional chaining ?. syntax has three forms:
+
+obj?.prop – returns obj.prop if obj exists, otherwise undefined.
+obj?.[prop] – returns obj[prop] if obj exists, otherwise undefined.
+obj.method?.() – calls obj.method() if obj.method exists, otherwise returns undefined.
+
+
+
+Symbol type:
+---------------
+A “symbol” represents a unique identifier.
+
+A value of this type can be created using Symbol():
+
+let id = Symbol();
+Upon creation, we can give symbols a description (also called a symbol name), mostly useful for debugging purposes:
+
+// id is a symbol with the description "id"
+let id = Symbol("id");
+
+
+
+If we really want to show a symbol, we need to explicitly call .toString() on it, like here:
+let id = Symbol("id");
+alert(id.toString()); // Symbol(id), now it works
+Or get symbol.description property to show the description only:
+
+let id = Symbol("id");
+alert(id.description); // id
+
+
+That said, all symbols have the description property.
+For instance:
+let globalSymbol = Symbol.for("name");
+let localSymbol = Symbol("name");
+
+alert( Symbol.keyFor(globalSymbol) ); // name, global symbol
+alert( Symbol.keyFor(localSymbol) ); // undefined, not global
+
+alert( localSymbol.description ); // name
+
+
+
+Symbol is a primitive type for unique identifiers.
+Symbols are created with Symbol() call with an optional description (name).
+
+Symbols are always different values, even if they have the same name. If we want same-named symbols to be equal, then we should use the global registry: Symbol.for(key) returns (creates if needed) a global symbol with key as the name. Multiple calls of Symbol.for with the same key return exactly the same symbol.
+
+Symbols have two main use cases:
+
+1) “Hidden” object properties.
+If we want to add a property into an object that “belongs” to another script or a library, we can create a symbol and use it as a property key. A symbolic property does not appear in for..in, so it won’t be accidentally processed together with other properties. Also it won’t be accessed directly, because another script does not have our symbol. So the property will be protected from accidental use or overwrite.
+So we can “covertly” hide something into objects that we need, but others should not see, using symbolic properties.
+
+2) There are many system symbols used by JavaScript which are accessible as Symbol.*. We can use them to alter some built-in behaviors. For instance, later in the tutorial we’ll use Symbol.iterator for iterables, Symbol.toPrimitive to setup object-to-primitive conversion and so on.
+
+Technically, symbols are not 100% hidden. There is a built-in method Object.getOwnPropertySymbols(obj) that allows us to get all symbols. Also there is a method named Reflect.ownKeys(obj) that returns all keys of an object including symbolic ones. But most libraries, built-in functions and syntax constructs don’t use these methods.
+
+
+
+Object to Primitive Conversion:
+-----------------------------------
+The object-to-primitive conversion is called automatically by many built-in functions and operators that expect a primitive as a value.
+
+There are 3 types (hints) of it:
+
+"string" (for alert and other operations that need a string)
+"number" (for maths)
+"default" (few operators, usually objects implement it the same way as "number")
+The specification describes explicitly which operator uses which hint.
+
+The conversion algorithm is:
+
+Call obj[Symbol.toPrimitive](hint) if the method exists,
+Otherwise if hint is "string"
+try calling obj.toString() or obj.valueOf(), whatever exists.
+Otherwise if hint is "number" or "default"
+try calling obj.valueOf() or obj.toString(), whatever exists.
+All these methods must return a primitive to work (if defined).
+
+In practice, it’s often enough to implement only obj.toString() as a “catch-all” method for string conversions that should return a “human-readable” representation of an object, for logging or debugging purposes.
+
+
+
+
+
+DATA TYPES:
+=================
+- Numbers
+toString()
+Math.floor
+Math.ceil
+Math.round
+Math.trunc
+.toFixed()
+
+parseInt()
+parseFloat()
+
+Math.random()
+Math.max()
+Math.min()
+Math.pow()
+
+parseInt(str, base) parses the string str into an integer in numeral system with given base, 2 ≤ base ≤ 36.
+num.toString(base) converts a number to a string in the numeral system with the given base.
+
+For regular number tests:
+
+- isNaN(value) converts its argument to a number and then tests it for being NaN
+- Number.isNaN(value) checks whether its argument belongs to the number type, and if so, tests it for being NaN
+- isFinite(value) converts its argument to a number and then tests it for not being NaN/Infinity/-Infinity
+- Number.isFinite(value) checks whether its argument belongs to the number type, and if so, tests it for not being NaN/Infinity/-Infinity
+
+
+random(min, max)
+randomInteger(min, max)
+
+
+
+Strings:
+-----------
+Escape Characters:
+-----------------
+\n
+\r
+\' \" \`
+\\
+\t
+\b \f \v
+
+
+
+Arrays:
+-------------
+let arr = new Array();
+let arr = [];
+
+for of loop works on element
+for in loop works on index
+
+
+
+
+Iterable:
+------------
+let str = "Hello";
+
+// does the same as
+// for (let char of str) alert(char);
+
+let iterator = str[Symbol.iterator]();
+
+while (true) {
+  let result = iterator.next();
+  if (result.done) break;
+  alert(result.value); // outputs characters one by one
+}
+
+
+
+
+
+Map and Set:
+--------------
+Map: Map is a collection of keyed data items, just like an Object. But the main difference is that Map allows keys of any type.
+
+Methods and properties are:
+---------------
+- new Map() – creates the map.
+- map.set(key, value) – stores the value by the key.
+- map.get(key) – returns the value by the key, undefined if key doesn’t exist in map.
+- map.has(key) – returns true if the key exists, false otherwise.
+- map.delete(key) – removes the element (the key/value pair) by the key.
+- map.clear() – removes everything from the map.
+- map.size – returns the current element count.
+
+
+Iteration over Map:
+--------------------
+For looping over a map, there are 3 methods:
+- map.keys() – returns an iterable for keys,
+- map.values() – returns an iterable for values,
+- map.entries() – returns an iterable for entries [key, value], it’s used by default in for..of.
+
+
+Besides that, Map has a built-in forEach method, similar to Array:
+// runs the function for each (key, value) pair
+recipeMap.forEach( (value, key, map) => {
+  alert(`${key}: ${value}`); // cucumber: 500 etc
+});
+
+
+If we have a plain object, and we’d like to create a Map from it, then we can use built-in method Object.entries(obj) that returns an array of key/value pairs for an object exactly in that format.
+So we can create a map from an object like this:
+
+let obj = {
+  name: "John",
+  age: 30
+};
+let map = new Map(Object.entries(obj));
+alert( map.get('name') ); // John
+
+
+We can use Object.fromEntries to get a plain object from Map.
+E.g. we store the data in a Map, but we need to pass it to a 3rd-party code that expects a plain object.
+
+Here we go:
+let map = new Map();
+map.set('banana', 1);
+map.set('orange', 2);
+map.set('meat', 4);
+let obj = Object.fromEntries(map.entries()); // make a plain object (*)
+// done!
+// obj = { banana: 1, orange: 2, meat: 4 }
+alert(obj.orange); // 2
+
+
+
+Set: A Set is a special type collection – “set of values” (without keys), where each value may occur only once.
+
+Its main methods are:
+- new Set([iterable]) – creates the set, and if an iterable object is provided (usually an array), copies values from it into the set.
+- set.add(value) – adds a value, returns the set itself.
+- set.delete(value) – removes the value, returns true if value existed at the moment of the call, otherwise false.
+- set.has(value) – returns true if the value exists in the set, otherwise false.
+- set.clear() – removes everything from the set.
+- set.size – is the elements count.
+
+Ex:
+let set = new Set();
+let john = { name: "John" };
+let pete = { name: "Pete" };
+let mary = { name: "Mary" };
+// visits, some users come multiple times
+set.add(john);
+set.add(pete);
+set.add(mary);
+set.add(john);
+set.add(mary);
+// set keeps only unique values
+alert( set.size ); // 3
+for (let user of set) {
+  alert(user.name); // John (then Pete and Mary)
+}
+
+
+We can loop over a set either with for..of or using forEach:
+let set = new Set(["oranges", "apples", "bananas"]);
+for (let value of set) alert(value);
+// the same with forEach:
+set.forEach((value, valueAgain, set) => {
+  alert(value);
+});
+
+
+
+WeakMap and WeakSet:
+--------------------
+The first difference between Map and WeakMap is that keys must be objects, not primitive values:
+
+let weakMap = new WeakMap();
+let obj = {};
+weakMap.set(obj, "ok"); // works fine (object key)
+// can't use a string as the key
+weakMap.set("test", "Whoops"); // Error, because "test" is not an object
+
+WeakMap has only the following methods:
+- weakMap.set(key, value)
+- weakMap.get(key)
+- weakMap.delete(key)
+- weakMap.has(key)
+
+
+WeakSet:
+----------------
+WeakSet behaves similarly:
+- It is analogous to Set, but we may only add objects to WeakSet (not primitives).
+- An object exists in the set while it is reachable from somewhere else.
+- Like Set, it supports add, has and delete, but not size, keys() and no iterations.
+
+Being “weak”, it also serves as additional storage. But not for arbitrary data, rather for “yes/no” facts. A membership in WeakSet may mean something about the object.
+For instance, we can add users to WeakSet to keep track of those who visited our site:
+
+let visitedSet = new WeakSet();
+
+let john = { name: "John" };
+let pete = { name: "Pete" };
+let mary = { name: "Mary" };
+
+visitedSet.add(john); // John visited us
+visitedSet.add(pete); // Then Pete
+visitedSet.add(john); // John again
+
+// visitedSet has 2 users now
+
+// check if John visited?
+alert(visitedSet.has(john)); // true
+
+// check if Mary visited?
+alert(visitedSet.has(mary)); // false
+
+john = null;
+
+// visitedSet will be cleaned automatically
+
+
+
+Object.keys, values, entries:
+------------------------------------
+They are supported for:
+- Map
+- Set
+- Array
+
+Transforming objects
+Objects lack many methods that exist for arrays, e.g. map, filter and others.
+If we’d like to apply them, then we can use Object.entries followed by Object.fromEntries:
+- Use Object.entries(obj) to get an array of key/value pairs from obj.
+- Use array methods on that array, e.g. map, to transform these key/value pairs.
+- Use Object.fromEntries(array) on the resulting array to turn it back into an object.
+
+
+For example, we have an object with prices, and would like to double them:
+
+let prices = {
+  banana: 1,
+  orange: 2,
+  meat: 4,
+};
+
+let doublePrices = Object.fromEntries(
+  // convert prices to array, map each key/value pair into another pair
+  // and then fromEntries gives back the object
+  Object.entries(prices).map(entry => [entry[0], entry[1] * 2])
+);
+
+alert(doublePrices.meat); // 8
+
+
+
+
+Destructuring assignment:
+---------------------------
+Destructuring assignment is a special syntax that allows us to “unpack” arrays or objects into a bunch of variables, as sometimes that’s more convenient.
+
+Array destructuring
+Here’s an example of how an array is destructured into variables:
+// we have an array with a name and surname
+let arr = ["John", "Smith"]
+
+// destructuring assignment
+// sets firstName = arr[0]
+// and surname = arr[1]
+let [firstName, surname] = arr;
+
+alert(firstName); // John
+alert(surname);  // Smith
+
+
+The rest ‘…’
+Usually, if the array is longer than the list at the left, the “extra” items are omitted.
+
+If we’d like also to gather all that follows – we can add one more parameter that gets “the rest” using three dots "...":
+
+let [name1, name2, ...rest] = ["Julius", "Caesar", "Consul", "of the Roman Republic"];
+
+// rest is an array of items, starting from the 3rd one
+alert(rest[0]); // Consul
+alert(rest[1]); // of the Roman Republic
+alert(rest.length); // 2
+
+
+
+Object destructuring:
+---------------------
+The destructuring assignment also works with objects.
+The basic syntax is:
+
+let {var1, var2} = {var1:…, var2:…}
+
+
+let options = {
+  title: "Menu",
+  width: 100,
+  height: 200
+};
+
+// { sourceProperty: targetVariable }
+let {width: w, height: h, title} = options;
+
+// width -> w
+// height -> h
+// title -> title
+
+alert(title);  // Menu
+alert(w);      // 100
+alert(h);      // 200
+
+
+
+
+!! Gotcha if there’s no let
+In the examples above variables were declared right in the assignment: let {…} = {…}. Of course, we could use existing variables too, without let. But there’s a catch.
+
+This won’t work:
+
+let title, width, height;
+
+// error in this line
+{title, width, height} = {title: "Menu", width: 200, height: 100};
+The problem is that JavaScript treats {...} in the main code flow (not inside another expression) as a code block. Such code blocks can be used to group statements, like this:
+
+{
+  // a code block
+  let message = "Hello";
+  // ...
+  alert( message );
+}
+So here JavaScript assumes that we have a code block, that’s why there’s an error. We want destructuring instead.
+
+To show JavaScript that it’s not a code block, we can wrap the expression in parentheses (...):
+
+let title, width, height;
+
+// okay now
+({title, width, height} = {title: "Menu", width: 200, height: 100});
+
+alert( title ); // Menu
+
+
+Nested Destructing:
+---------------------
+let options = {
+  size: {
+    width: 100,
+    height: 200
+  },
+  items: ["Cake", "Donut"],
+  extra: true
+};
+
+// destructuring assignment split in multiple lines for clarity
+let {
+  size: { // put size here
+    width,
+    height
+  },
+  items: [item1, item2], // assign items here
+  title = "Menu" // not present in the object (default value is used)
+} = options;
+
+alert(title);  // Menu
+alert(width);  // 100
+alert(height); // 200
+alert(item1);  // Cake
+alert(item2);  // Donut
+
+
+Smart function parameters:
+---------------------------
+There are times when a function has many parameters, most of which are optional. That’s especially true for user interfaces. Imagine a function that creates a menu. It may have a width, a height, a title, an item list and so on.
+
+
+// we pass object to function
+let options = {
+  title: "My menu",
+  items: ["Item1", "Item2"]
+};
+
+// ...and it immediately expands it to variables
+function showMenu({title = "Untitled", width = 200, height = 100, items = []}) {
+  // title, items – taken from options,
+  // width, height – defaults used
+  alert( `${title} ${width} ${height}` ); // My Menu 200 100
+  alert( items ); // Item1, Item2
+}
+
+showMenu(options);
+
+
+
+The full syntax is the same as for a destructuring assignment:
+function({
+  incomingProperty: varName = defaultValue
+  ...
+})
+
+
+
+Date and Time:
+-------------------
+In Node.txt
+
+
+JSON:
+---------
+The third argument of JSON.stringify(value, replacer, space) is the number of spaces to use for pretty formatting.
+
+
+- JSON is a data format that has its own independent standard and libraries for most programming languages.
+- JSON supports plain objects, arrays, strings, numbers, booleans, and null.
+- JavaScript provides methods JSON.stringify to serialize into JSON and JSON.parse to read from JSON.
+- Both methods support transformer functions for smart reading/writing.
+- If an object has toJSON, then it is called by JSON.stringify.
+
+
+
