@@ -1,0 +1,1499 @@
+Chapter 1 - What is Apache Kafka?
+--------------------------------------
+
+Simple Definition
+Kafka is a system that receives events, stores them in order, and allows many consumers to read those events whenever they need them.
+
+Notice something important:
+
+Kafka stores the events, instead of immediately removing them after one consumer reads them.
+
+This is one of the biggest differences from traditional message queues.
+
+
+Mini Summary
+Remember these five points:
+
+- Kafka was created at LinkedIn.
+- It solves large-scale event streaming problems.
+- Kafka stores events instead of immediately removing them.
+- Many consumers can read the same events independently.
+- Consumers track their own reading position using offsets.
+
+
+
+
+Chapter 2 - Kafka Architecture
+========================
+
+Producer -> Broker -> Topic -> Partition -> Consumer Group -> Consumer
+
+
+Kafka is made up of several components working together.
+
+Topic 1: Producer
+---------------
+
+Producer: A Producer is any application that sends events (messages) to Kafka.
+
+For now, just understand:
+
+Create Event
+
+↓
+
+Send to Kafka
+
+↓
+
+Done
+
+The Producer's job ends there.
+
+It doesn't care:
+
+Who will read the event.
+When it will be read.
+How many consumers exist.
+Whether there are 2 consumers or 200.
+
+It simply sends the event to Kafka.
+
+This is called decoupling.
+
+
+
+Topic 2: Broker
+------------------
+
+Definition
+
+A Broker is a Kafka server that stores events and serves Producers and Consumers.
+
+Like how multiple RabbitMQ nodes
+
+Together they form a Kafka Cluster.
+
+Broker responsibility,
+- Receive Events
+- Store events
+- Send events to consumers
+- Manage Storage
+
+
+Topic 3: Topic
+--------------------
+
+A Topic is a logical category (or stream) where related events are stored. Like, we have topic exchange with patterns *, #. All those user related messages goes to one place like that all events related to user goes to one topic.
+
+And producer send like this - 
+producer.send(
+    topic="orders",
+    value=order
+)
+
+here we can see topic="orders" like how we have routing key to go to which queue. Here, to go to which topic.
+
+
+Syntax:
+------
+Create Topic (CLI)
+
+kafka-topics.sh \
+--create \
+--topic orders \
+--partitions 3 \
+--replication-factor 2 \
+--bootstrap-server localhost:9092
+
+
+
+
+Topic 4: Partitions
+---------------------
+
+A Partition is a smaller, ordered segment of a Topic where events are stored sequentially.
+
+From application's perspective, it is one topic only. 
+
+Internally, Kafka has split it into three partitions.
+
+One thread for one partition. 
+
+Having multiple partitions means having multiple threads and kafka can process them in parallell. This is called Parallel Processing.
+
+Inside the partition, how we have orders or events, in that way only it will be read.
+
+Mini Summary
+A Partition:
+- Is a subdivision of a Topic.
+- Stores events sequentially.
+- Enables parallel processing.
+- Improves scalability.
+- Can be placed on different Brokers.
+- Guarantees ordering within itself.
+
+
+
+There are three ways to push an event into a partition.
+
+i) Producer doesn't provide a key
+producer.send(
+    topic="orders",
+    value=order
+)
+
+In this case, modern Kafka producers generally distribute records across the available partitions to achieve a balanced load (the exact strategy depends on the producer implementation and configuration).
+
+For example:
+
+Order1 → Partition 0
+
+Order2 → Partition 1
+
+Order3 → Partition 2
+
+Order4 → Partition 0
+
+Order5 → Partition 1
+
+Order6 → Partition 2
+
+The goal is to balance the load.
+
+This matches your intuition.
+
+
+ii) Producer Provides a Key
+
+producer.send(
+    topic="orders",
+    key="Customer101",
+    value=order
+)
+
+Now Kafka behaves differently.
+
+Instead of just balancing,
+
+Kafka computes a partition from the key.
+
+Conceptually:
+
+Partition = hash(key) % number_of_partitions
+
+For example:
+
+hash("Customer101") % 3 = 2
+
+So:
+
+Customer101
+
+↓
+
+Partition 2
+
+Now suppose the same customer places another order.
+
+Customer101
+
+↓
+
+Partition 2
+
+Again.
+
+
+Why it helps having same customer order in one partition. Because, handling of same customer details or anything in multiple partitions will be not good practice.
+
+
+
+iii) Producer Explicity Chooses the Partition
+
+producer.send(
+    topic="orders",
+    partition=2,
+    value=order
+)
+
+So, in that partition, that event will be stored and it was less common.
+
+
+⭐ Interview Tip
+
+One of the most common interview questions is:
+
+Why do we use a key in Kafka?
+
+The expected answer is:
+
+A key ensures that related events are consistently routed to the same partition. This preserves ordering for those events while still allowing the topic to scale across multiple partitions.
+
+
+
+
+Topic 5: Offset
+------------------
+
+Offset is the unique sequential position of a record within a partition.
+
+Remember two important points:
+
+	Offsets are unique only within a partition.
+	Different partitions can have the same offset values.
+	
+Mini Summary
+
+An Offset:
+	Is the position of a record within a partition.
+	Is unique within that partition.
+	Helps consumers know where to resume.
+	Does not mean the message has been deleted.
+	Enables replay and crash recovery.
+	
+
+
+Topic 6: Offset Commit
+-----------------------------
+"Kafka, I have successfully processed all records up to this offset."
+
+Many beginners think:
+
+The consumer stores it locally.
+
+❌ Not usually.
+
+Kafka stores committed offsets in a special internal Kafka topic named:
+
+__consumer_offsets
+
+There are two ways to commit:
+
+a) Auto commit
+
+consumer = KafkaConsumer(
+    "orders",
+    enable_auto_commit=True
+)
+
+Kafka automatically commits periodically. If consumer reads an offset.
+
+But there is a problem with it, if it read offset 10 and automatically committed offset 10 after that it was crashed. So, that offset was not completed. After it came alive, Kafka thinks is offset 10 completed or not. If completed then the offset starts from 11. Offset 10 will be skipped. This can lead to data loss.
+
+
+b) Manual commit 
+Instead:
+
+Read Offset 10
+
+↓
+
+Process Completely ✅
+
+↓
+
+Commit Offset 10
+
+Now if the application crashes before the commit,
+
+Kafka still thinks:
+
+Last Commit = 9
+
+After restart:
+
+Read Offset 10 Again
+
+Yes...
+
+Offset 10 gets processed again.
+
+But that's usually better than losing it.
+
+This is called At-Least-Once Processing.
+
+
+
+Auto Commit 			vs 		Manual Commit
+Auto Commit					Manual Commit
+Automatic					Developer controls commit
+Easy						More code
+Risk of committing before processing finishes	Commit only after successful processing
+Good for simple use cases			Preferred for critical business data
+
+
+Syntax
+Auto Commit
+consumer = KafkaConsumer(
+    "orders",
+    enable_auto_commit=True
+)
+Manual Commit
+consumer = KafkaConsumer(
+    "orders",
+    enable_auto_commit=False
+)
+
+for message in consumer:
+    process(message)
+    consumer.commit()
+    
+    
+
+Chapter 3: Consumer
+----------------------
+Consumer will ask for set of record of events from Kafka. If Kafka have it will give if not consumer will wait for a while and asks again. It uses poll() method.
+
+Like instead of RabbitMQ which pushes messages to consumers. The consumer will use pull method to pull any events if it has.
+
+
+Syntax:
+---------
+from kafka import KafkaConsumer
+
+consumer = KafkaConsumer("orders")
+
+while True:
+    messages = consumer.poll(timeout_ms=1000)
+
+    for tp, records in messages.items():
+        for record in records:
+            print(record.value)
+
+
+
+
+
+Chapter 3.1: Consumer Groups
+-------------------------------
+
+A Consumer Group is simply: A team of consumers working together to process a Topic.
+
+
+One partition can be consumed by only one Consumer within the same Consumer Group at a time.
+
+Kafka assigns:
+
+Partition 0
+
+↓
+
+Consumer A
+
+--------------------
+
+Partition 1
+
+↓
+
+Consumer B
+
+--------------------
+
+Partition 2
+
+↓
+
+Consumer C
+
+
+
+If suppose we have 3 partitions, two consumers. Then one consumer will have two partitions. It is not like one consumer one partition. 
+
+The real rule is:
+	One partition can be assigned to only one consumer within a Consumer Group. The relation will be Many-to-One not One-to-Many
+	
+
+
+Chapter 3.2: Rebalancing
+--------------------------
+
+If suppose, after a while another consumer was created. Will the distribution of consumer of partitions will be same. No, then there is no use of that consumer, right. So, Kafka will rearranges them It is called Rebalancing.
+
+Rebalancing is the process where Kafka redistributes partitions among consumers in a Consumer Group whenever the group membership changes or partition assignments need to change.
+
+When does Rebalancing happen?
+
+Kafka triggers a rebalance when:
+
+✅ A new Consumer joins the group.
+✅ A Consumer leaves or crashes.
+✅ The number of partitions changes.
+✅ A Consumer stops sending heartbeats (we'll learn heartbeats later).
+
+
+Heartbeat is nothing but consumer saying I'm alive to Kafka. It will send that message time to time. If it stopped means then Kafka will know that consumer was crashed or gone.
+
+
+So, based on that also rebalancing works
+
+
+
+Group Coordinator
+---------------------
+Think of it as the manager of the Consumer Group.
+
+The Group Coordinator is responsible for:
+
+Keeping track of which Consumers are in the group.
+Receiving Heartbeats.
+Detecting failed Consumers.
+Triggering Rebalances.
+Assigning Partitions.
+
+
+
+Chapter 4.1 - Replication
+--------------------------
+Kafka doesn't keep just one copy.
+
+It keeps multiple copies of every partition.
+
+These copies are called:
+
+Replicas
+
+
+A Replica is a copy of a partition stored on another Broker.
+
+Remember:
+
+Kafka replicates partitions, not entire brokers or topics.
+
+
+So by this replicas, we can still have our data instead of lossing, when the main broker got crashed. This is called Fault Tolerance
+
+
+We configure Replication Factor = 3
+
+To have 3 full copies of partition in three different brokers.
+
+Kafka doesn't think in terms of original and copy. 
+
+Instead, it has:
+
+-> One Leader Replica
+-> Multiple Follower Replicas
+
+
+Does Every Broker Have Every Partition?
+
+No.
+
+Example:
+
+Suppose:
+
+Orders Topic
+
+P0
+
+P1
+
+Kafka may distribute them like this:
+
+Broker 1
+
+P0
+
+P1 (Replica)
+
+------------------
+
+Broker 2
+
+P1
+
+P0 (Replica)
+
+------------------
+
+Broker 3
+
+P0 (Replica)
+
+P1 (Replica)
+
+Notice:
+
+Every Broker stores different partitions and replicas.
+
+This balances storage and improves availability.
+
+
+Mini Summary
+Replication:
+	Creates multiple copies of a partition.
+	Improves fault tolerance.
+	Prevents data loss if a Broker fails.
+	Stores replicas on different Brokers.
+	Is configured using the Replication Factor.
+	
+
+
+Chapter 4.2 - Leader Replica & Follower Replica
+-------------------------------------------------
+
+In all those replicas, Kafka will make one replica as Leader and all other replicas as Follwers.
+
+So, whenever an event comes by producer. It will always writes to the Leader. Followers Copy Data through synchronization.
+
+Similarly, if a consumer whats to read an event. It will read form Leader itself.
+
+If suppose if the leader crashes. Then Kafka promotes one of the Follower to Leader. This promotion is called Leader Election.
+
+
+Mini Summary
+Leader Replica:
+	Accepts all writes.
+	Serves all reads (normally).
+	One Leader per partition.
+
+Follower Replica:
+	Copies data from the Leader.
+	Does not normally serve Producers or Consumers.
+	Can become the Leader if the current Leader fails.
+
+
+What if before those copies goes to follower replica. The learder crashes. Will Kafka make another follower as leader. But it don't have latest events.
+
+This is where we will have ISR(In-Sync Replicas).
+
+
+
+Chapter 4.3 - ISR(In-Sync Replicas)
+---------------------------------------
+
+Even the synchronization will go one by one follower.
+
+Kafka says:
+
+Not every follower is allowed to become Leader.
+
+Only certain Followers can.
+
+Those Followers are called:
+
+In-Sync Replicas (ISR)
+
+An ISR is a replica that is sufficiently up-to-date with the Leader. Then Kafka will make this follower as Leader. Otherwise, if we take another follower which don't be updated with leader and make it as leader. We can see loss of data.
+
+
+ISR Set
+
+Imagine:
+
+Leader
+
+P0
+
+Follower A
+
+Follower B
+
+Follower C
+
+Kafka internally maintains something called the ISR Set.
+
+Example:
+
+ISR
+
+Leader
+
+Follower A
+
+Follower B
+
+Follower C is not in the ISR.
+
+Why?
+
+Because it is too far behind.
+
+So, whenever it want to choose a follower to make as leader after leader crash. It will chose from this set itself.
+
+Mini Summary
+ISR:
+	Contains replicas that are sufficiently synchronized with the Leader.
+	Only ISR members are normally eligible to become the new Leader.
+	Replicas can leave the ISR if they lag too much.
+	They can rejoin after catching up.
+
+
+
+
+Chapter 4.4 - Producer ACKs 
+------------------------------
+To tell to the producer that I got your message
+
+There are three ACK modes
+
+a) acks=0
+
+This is the fastest.
+
+Producer:
+
+Producer
+↓
+Send Message
+↓
+Continue Immediately
+
+Notice something.
+
+The Producer doesn't wait for Kafka to respond. It simply sends the message and moves on.
+
+Problem
+-----------
+Suppose:
+
+Producer
+↓
+Send Order101
+↓
+Network Failure
+↓
+Leader never receives it
+
+Producer doesn't know. Because it never waited for an ACK.
+
+Message lost.
+
+
+When is acks=0 used?
+--------------------
+Only when:
+
+Speed is more important than reliability.
+
+Example:
+	Application metrics
+	Monitoring logs
+	Analytics data
+Losing a few events is acceptable.
+
+
+b) acks=1
+It send ACK after that event was successfully stored by leader.
+
+Problem:
+--------------
+Imagine:
+
+Producer
+↓
+Leader Stores
+↓
+ACK Sent
+↓
+💥 Leader Crashes
+↓
+Followers never copied it
+
+Producer thinks:
+Success ✅
+
+But the message is gone.
+Why?
+
+Because the Leader died before replication completed.
+
+
+c) acks=all
+
+This is the safest.
+
+Producer sends:
+
+Producer
+↓
+Leader
+
+Leader stores it.
+But...
+Leader doesn't send the ACK immediately.
+
+Instead:
+
+Leader
+↓
+Followers Copy
+↓
+All ISR Replicas Confirm
+↓
+Leader Sends ACK
+↓
+Producer
+
+Only then does the Producer receive success.
+
+
+Python Syntax
+from kafka import KafkaProducer
+
+producer = KafkaProducer(
+    bootstrap_servers="localhost:9092",
+    acks="all"
+)
+
+
+Chapter 4.5 - Delivery Guarantees
+------------------------------------
+The Goal
+Imagine you're sending money.
+
+A sends ₹1000 to B
+Question:
+
+How many times should this transaction happen?
+
+Option A
+
+0 Times
+❌ Money never transferred.
+
+Option B
+
+2 Times
+❌ ₹2000 transferred.
+
+Option C
+
+Exactly 1 Time
+✅ Correct.
+
+This is what delivery guarantees are about.
+
+
+Part 1 - At Most Once
+---------------
+
+The meaning is: 
+	The message will be delivered zero or one time. Never more than once.
+	
+Notice something.
+
+Kafka guarantees:
+
+No duplicates
+
+But...
+
+It does not guarantee that the message will definitely be processed.
+
+It may be lost.
+
+
+Example
+---------------
+Suppose the Consumer receives:
+
+Order101
+But immediately commits the offset.
+
+Read Order101
+↓
+Commit Offset ✅
+↓
+💥 Consumer Crash
+↓
+Never processed Order101
+
+What happens now?
+Consumer restarts.
+
+Kafka sees:
+	Offset Already Committed
+
+So it starts from the next offset.
+Order101 is skipped forever.
+
+Result
+	Order101
+	❌ Lost
+	No duplicate.
+	But data loss happened.
+
+Hence:
+	At Most Once
+	
+
+Where is it used?
+When duplicates are worse than losing data.
+Example:
+- Some telemetry
+- Some monitoring systems
+
+Part 2 - At Least Once
+----------------------------
+This is the opposite philosophy.
+
+Kafka says:
+
+	" I'd rather process the message twice than lose it. "
+	
+
+Suppose:
+Read Order101
+↓
+Process Successfully
+↓
+💥 Crash
+↓
+Offset NOT Committed
+
+Consumer restarts.
+Kafka checks.
+Offset wasn't committed.
+Kafka says:
+	Read Order101 Again
+
+Now Order101 is processed again.
+
+Result:
+Order101
+Processed
+Processed Again
+
+Duplicate.
+But...
+No data loss.
+
+
+
+Where is it used?
+Most Kafka applications.
+Examples:
+- Orders
+- Notifications
+- Analytics
+- Event processing
+Applications are usually written to handle duplicate events safely.
+
+
+
+Part 3 - Exactly Once
+------------------------
+This is the ideal guarantee.
+
+Kafka aims for:
+
+Every message
+↓
+Exactly One Time
+
+No loss.
+No duplicates.
+
+
+Real-Life Analogy
+
+Imagine a bank transfer.
+₹1000 should be deducted:
+-> Not zero times.
+-> Not two times.
+-> Exactly one time.
+
+
+Comparison
+Delivery Guarantee	Data Loss	Duplicates
+At Most Once		✅ Possible	❌ No
+At Least Once		❌ No		✅ Possible
+Exactly Once		❌ No		❌ No
+
+
+By default, Kafka applications are commonly designed for:
+	At Least Once
+Why?
+Because losing an order or payment is usually much worse than processing it twice.
+If duplicates are possible, the application can often detect and ignore them (this is where idempotency becomes important).
+
+
+This is why At Least Once works so well in practice:
+Kafka guarantees the message won't be lost.
+Your application guarantees that duplicate messages don't cause duplicate business actions.
+Together, they create a reliable system.
+
+
+We need to make the tasks to be idempotent. Because, if we are dealing with payment, just because the message was delivered again, will we charge the user again no. That's where idempotent will come and At Least Once comes.
+
+
+
+
+Chapter 5.1 - Retention Policy
+---------------------------------
+Kafka's Philosophy
+
+Kafka says:
+	"Just because a Consumer read a message doesn't mean I should delete it."
+
+Instead:
+Kafka stores messages for a configurable period.
+This is called the: Retention Policy
+
+
+Retention Policy defines how long Kafka keeps messages before deletimg them.
+
+Notice something.
+Deletion depends on: Time, Size
+
+Not on whether a consumer has read the message.
+
+
+Why Retention Is Amazing
+
+Suppose:
+Consumer A processed:
+
+Offset 0
+Offset 1
+Offset 2
+
+One month later...
+
+Consumer B is introduced.
+
+Where can it start?
+
+Offset 0
+If those messages are still within the retention period.
+
+That's called Replay.
+
+
+Real-World Uses of Replay
+Companies replay events for:
+* Building a new Analytics Service.
+* Machine Learning model training.
+* Fraud Detection.
+* Data recovery.
+* Debugging production issues.
+* Rebuilding databases.
+
+This is why Kafka is often called an event log, not just a message queue.
+
+
+RabbitMQ				Kafka
+Deletes message after ACK (typically)	Retains messages regardless of consumption
+Queue-based				Log-based
+Replay is difficult			Replay is built-in
+
+
+
+
+Chapter 5.2 - Log Compaction
+--------------------------------
+Retention says:
+	Delete messages based on time or size.
+
+Log Compaction says something completely different.
+	Keep the latest value for each key, regardless of age.
+
+This is a very important distinction.
+
+
+Step 1 - The Problem
+
+Suppose we have a topic:
+
+User Profile Topic
+
+Messages:
+Key        Value
+User101    Name = Sri
+User102    Name = Ravi
+User101    Name = Sri Lakshmi
+User103    Name = John
+User101    Name = B. Sowmya Sri Lakshmi
+
+Notice:
+User101 appears three times.
+
+If a new service, does it need all three messages, it only need latest message.
+
+
+Here comes the Kafka solution Log Compaction.
+
+Kafka performs Log Compaction.
+After compaction:
+
+Key        Value
+User101    B. Sowmya Sri Lakshmi ✅
+User102    Ravi
+User103    John
+The older values for User101 are removed.
+Only the latest value remains.
+
+
+Log Compaction keeps the latest record for each message key while removing older records with the same key.
+
+Notice carefully:
+
+It does not keep the latest message overall.
+
+It keeps the latest message for each key.
+
+
+
+Real-World Use Cases
+
+Log Compaction is ideal for data where you only care about the latest state.
+
+Examples:
+👤 User profiles
+🏦 Account balances
+📦 Product inventory
+⚙️ Application configuration
+🌍 Feature flags
+🛒 Shopping cart state
+
+
+
+
+
+PRACTICAL IMPLEMENTATION
+============================
+
+kafka is written in Java.
+
+Apache Kafka port 9093 (Controller)
+
+Client side 9092
+
+By default it will create 1 partitions i.e., partition 0
+
+-> Start Kafka Broker,
+bin/kafka-server-start.sh config/server.properties
+
+If it is the first time running, it says it doesn't have storage. For that we need to create cluster and give an id. 
+bin/kafka-storage.sh random-uuid
+
+bin/kafka-storage.sh format \
+  --cluster-id FFj-IcGpRS-cahZmxxWLqg \
+  --standalone \
+  --config config/server.properties
+
+
+
+The Controller Quorum stores metadata such as:
+Topics
+Partitions
+Leaders
+Replica assignments
+
+This directory is where that metadata will live.
+
+Now after above command the storage will be created having metadata.
+
+sowmya@sowmya-Inspiron-14-Plus-7440:/opt/kafka$ ls -la /tmp/kraft-combined-logs
+total 20
+drwxrwxr-x  3 sowmya sowmya 4096 Jul 14 14:47 .
+drwxrwxrwt 26 root   root   4096 Jul 14 14:51 ..
+-rw-rw-r--  1 sowmya sowmya  411 Jul 14 14:47 bootstrap.checkpoint
+drwxrwxr-x  2 sowmya sowmya 4096 Jul 14 14:47 __cluster_metadata-0
+-rw-rw-r--  1 sowmya sowmya  122 Jul 14 14:47 meta.properties
+sowmya@sowmya-Inspiron-14-Plus-7440:/opt/kafka$ cat /tmp/kraft-combined-logs/meta.properties
+#
+#Tue Jul 14 14:47:56 IST 2026
+cluster.id=FFj-IcGpRS-cahZmxxWLqg
+directory.id=3OkkbJAgSwmMVupUZ1viVg
+node.id=1
+version=1
+
+
+Now it starts the broker, with the first command that we wrote
+bin/kafka-server-start.sh config/server.properties
+
+It will be in running state, and won't redirect to prompt. Need to open another terminal
+
+
+
+--> Create a Topic
+
+bin/kafka-topics.sh \
+--create \
+--topic orders \
+--partitions 3 \
+--replication-factor 1 \
+--bootstrap-server localhost:9092
+
+
+--> To get detail information of a topic
+bin/kafka-topics.sh \
+--describe \
+--topic orders \
+--bootstrap-server localhost:9092
+
+
+cd /tmp/kraft-combined-logs/orders-0
+
+--> Kafka Console Producer
+bin/kafka-console-producer.sh \
+--topic orders \
+--bootstrap-server localhost:9092
+
+
+Will wait for inputs, to create events for that orders topic with >
+> Order Created
+> Payment Completed
+> Order Shipped
+
+
+
+--> Kafka Console Consumer
+
+bin/kafka-console-consumer.sh \
+--topic orders \
+--bootstrap-server localhost:9092
+
+If we start consumer after producer, we may don't get starting events. To get from starting we need to specifically mention those,
+
+bin/kafka-console-consumer.sh \
+--topic orders \
+--from-beginning \
+--bootstrap-server localhost:9092
+
+
+
+
+--> Consumer Groups
+bin/kafka-console-consumer.sh \
+--topic orders \
+--group order-service \
+--bootstrap-server localhost:9092
+
+We are creating order-service consumer group.
+
+
+
+--> Verify the Consumer Group
+bin/kafka-consumer-groups.sh \
+--bootstrap-server localhost:9092 \
+--describe \
+--group order-service
+
+I run two consumers, based on that partitions got rebalanced having 3, 2 go to 1 consumer and another go to 1 consumer.
+
+After stopping one consumer, all three partitions goes to one consumer. This is the rebalancing.
+
+
+--> Rebalancing when a new consumer joins
+
+bin/kafka-console-consumer.sh \
+--topic orders \
+--group order-service \
+--bootstrap-server localhost:9092
+
+
+
+--> Offsets describe only we can check
+sowmya@sowmya-Inspiron-14-Plus-7440:/opt/kafka$ bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group order-service
+
+GROUP           TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                           HOST            CLIENT-ID
+order-service   orders          0          93              93              0               console-consumer-40870318-8af2-40c3-860d-f5cc8a777004 /127.0.0.1      console-consumer
+order-service   orders          1          0               0               0               console-consumer-40870318-8af2-40c3-860d-f5cc8a777004 /127.0.0.1      console-consumer
+order-service   orders          2          6               6               0               console-consumer-40870318-8af2-40c3-860d-f5cc8a777004 /127.0.0.1      console-consumer
+
+
+
+--> A Brand-New Consumer Group
+bin/kafka-console-consumer.sh \
+--topic orders \
+--group analytics-service \
+--from-beginning \
+--bootstrap-server localhost:9092
+
+
+
+
+--> Reset Consumer Offsets
+bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --group order-service \
+  --reset-offsets \
+  --to-earliest \
+  --topic orders \
+  --dry-run  # To show what would happen
+  
+Instead of processing everything from start, we will change the offset.
+
+bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 \
+  --group order-service \
+  --reset-offsets \
+  --to-earliest \
+  --topic orders \
+  --execute
+  
+To update the committed offsets.
+
+
+
+--> Create a compacted topic
+bin/kafka-topics.sh \
+--create \
+--topic customer-balance \
+--partitions 1 \
+--replication-factor 1 \
+--config cleanup.policy=compact \
+--bootstrap-server localhost:9092
+
+--> Verify
+bin/kafka-topics.sh \
+--describe \
+--topic customer-balance \
+--bootstrap-server localhost:9092
+
+
+--> Start a Producer with key support
+bin/kafka-console-producer.sh \
+--bootstrap-server localhost:9092 \
+--topic customer-balance \
+--property parse.key=true \
+--property key.separator=:
+
+Now enter:
+
+A:100
+B:200
+A:150
+C:300
+B:250
+A:180
+
+
+Now instead of using kafka consumer and producer. We will use Python for it.
+
+Install kafka-python
+
+producer.py
+---------------
+
+1st version Normal Strings,
+from kafka import KafkaProducer
+
+producer = KafkaProducer(
+    bootstrap_servers='localhost:9092',
+    value_serializer=lambda v: v.encode("utf-8")
+)
+
+producer.send('orders', 'Hello Kafka with Serializer!')
+
+producer.flush()
+
+print('Message sent successfully')
+
+
+2nd Version Event
+from kafka import KafkaProducer
+import json
+
+producer = KafkaProducer(
+    bootstrap_servers='localhost:9092',
+    value_serializer=lambda v: json.dumps(v).encode("utf-8")
+)
+
+order_event = {
+    "order_id": 101,
+    "customer_id": 1001,
+    "amount": 500,
+    "status": "CREATED"
+}
+
+producer.send('orders', order_event)
+
+producer.flush()
+
+print('Order Event Sent Successfully!')
+
+
+Version 3: Multiple events along with consumer group
+
+from kafka import KafkaProducer
+import json
+import time
+
+producer = KafkaProducer(
+    bootstrap_servers="localhost:9092",
+    key_serializer=lambda k: k.encode("utf-8"),
+    value_serializer=lambda v: json.dumps(v).encode("utf-8")
+)
+
+statuses = [
+    "CREATED",
+    "PAYMENT_COMPLETED",
+    "RESTAURANT_ACCEPTED",
+    "FOOD_PREPARING",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED"
+]
+
+for status in statuses:
+
+    order = {
+        "order_id": 101,
+        "customer_id": 1001,
+        "status": status
+    }
+
+    producer.send(
+        "orders",
+        key="customer_1001",
+        value=order
+    )
+
+    print(f"Sent: {status}")
+
+    time.sleep(1)
+
+producer.flush()
+
+
+Version - 4
+from kafka import KafkaProducer
+import json
+import time
+
+producer = KafkaProducer(
+    bootstrap_servers="localhost:9092",
+
+    retries=5,
+
+    retry_backoff_ms=1000,
+
+    acks=1,
+
+    key_serializer=lambda k: k.encode(),
+
+    value_serializer=lambda v: json.dumps(v).encode()
+)
+statuses = [
+    "CREATED",
+    "PAYMENT_COMPLETED",
+    "RESTAURANT_ACCEPTED",
+    "FOOD_PREPARING",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED"
+]
+
+for status in statuses:
+
+    order = {
+        "order_id": 101,
+        "customer_id": 1001,
+        "status": status
+    }
+
+    producer.send(
+        "orders",
+        key="customer_1001",
+        value=order
+    )
+
+    print(f"Sent: {status}")
+
+    time.sleep(1)
+
+producer.flush()
+
+Version - 5
+--------------
+from kafka import KafkaProducer
+from kafka.errors import KafkaError
+import json
+
+producer = KafkaProducer(
+    bootstrap_servers="localhost:9092",
+    value_serializer=lambda v: json.dumps(v).encode("utf-8")
+)
+
+try:
+
+    producer.send(
+        "orders",
+        {
+            "order_id":101,
+            "status":"CREATED"
+        }
+    )
+
+    producer.flush()
+
+    print("Message Sent Successfully")
+
+except KafkaError as e:
+
+    print("Kafka Error:", e)
+
+except Exception as e:
+
+    print("Unexpected Error:", e)
+
+
+Consumer 
+
+1st Version
+from kafka import KafkaConsumer
+import json
+
+consumer = KafkaConsumer(
+    "orders",
+    bootstrap_servers="localhost:9092",
+    value_deserializer=lambda v: json.loads(v.decode("utf-8"))
+)
+
+print("Waiting for messages...")
+
+for message in consumer:
+    order = message.value
+
+    print(f"Order ID : {order['order_id']}")
+    print(f"Customer : {order['customer_id']}")
+    print(f"Amount   : {order['amount']}")
+    print(f"Status   : {order['status']}")
+    print("-" * 30)
+
+
+
+Version - 2
+---------------
+from kafka import KafkaConsumer
+import json
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+consumer = KafkaConsumer(
+    "orders",
+    bootstrap_servers="localhost:9092",
+    group_id="python-order-service",
+    enable_auto_commit=False,
+    value_deserializer=lambda v: json.loads(v.decode("utf-8"))
+)
+
+def process_order(order):
+
+    logger.info(f"Processing Order {order['order_id']}")
+
+    # Simulate business logic
+    logger.info("Saving to database")
+    logger.info("Updating inventory")
+    logger.info("Sending confirmation email")
+
+for message in consumer:
+
+    try:
+
+        process_order(message.value)
+
+        consumer.commit()
+
+        logger.info("Offset committed successfully")
+
+    except Exception as e:
+
+        logger.error(f"Processing failed: {e}")
